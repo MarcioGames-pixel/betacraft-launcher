@@ -51,6 +51,7 @@ public final class MainActivity extends Activity {
     private Button refreshButton;
     private Button downloadButton;
     private Button runtimeCheckButton;
+    private Button runtimeInstallButton;
     private ProgressBar progressBar;
     private File dataRoot;
     private volatile boolean activityAlive = true;
@@ -135,6 +136,13 @@ public final class MainActivity extends Activity {
         root.addView(downloadButton, downloadParams);
         downloadButton.setOnClickListener(v -> downloadSelectedVersion());
 
+        runtimeInstallButton = new Button(this);
+        runtimeInstallButton.setText("Instalar runtime Java 17 (ARM64)");
+        LinearLayout.LayoutParams runtimeInstallParams = matchWrap();
+        runtimeInstallParams.topMargin = dp(8);
+        root.addView(runtimeInstallButton, runtimeInstallParams);
+        runtimeInstallButton.setOnClickListener(v -> installRuntime());
+
         runtimeCheckButton = new Button(this);
         runtimeCheckButton.setText("Verificar requisitos para executar");
         LinearLayout.LayoutParams runtimeCheckParams = matchWrap();
@@ -178,7 +186,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("O download já funciona. A verificação de execução identifica os componentes que ainda faltam; ela não inicia o Minecraft.");
+        note.setText("O instalador baixa o OpenJDK 17 ARM64 publicado pelo projeto PojavLauncher. Isso instala a JVM, mas não inclui o renderizador/input necessário e ainda não inicia o Minecraft. Para versões antigas, Java 8 pode ser necessário.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -340,6 +348,45 @@ public final class MainActivity extends Activity {
                     dataRoot, selected, android.os.Build.SUPPORTED_ABIS,
                     new File(getApplicationInfo().nativeLibraryDir));
             runOnUiThread(() -> setBusy(false, report));
+        });
+    }
+
+    private void installRuntime() {
+        boolean arm64 = false;
+        for (String abi : android.os.Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equals(abi)) arm64 = true;
+        }
+        if (!arm64) {
+            status.setText("Este pacote de runtime é ARM64; arquitetura do dispositivo não compatível.");
+            return;
+        }
+        setBusy(true, "Preparando instalação do OpenJDK 17 ARM64…");
+        io.execute(() -> {
+            try {
+                AndroidRuntimeInstaller.install(new File(dataRoot, "runtime"),
+                        (stage, current, total) -> runOnUiThread(() -> {
+                            if (total > 0 && total < 50000) {
+                                int percent = (int) Math.min(100, current * 100L / total);
+                                progressBar.setIndeterminate(false);
+                                progressBar.setProgress(percent);
+                            } else {
+                                progressBar.setIndeterminate(true);
+                            }
+                            status.setText(stage + (total > 0 && total < 50000
+                                    ? " (" + current + "/" + total + ")" : ""));
+                        }));
+                String report = AndroidLaunchPreflight.inspect(
+                        dataRoot, versionSpinner == null || versionSpinner.getSelectedItem() == null
+                                ? "" : String.valueOf(versionSpinner.getSelectedItem()),
+                        android.os.Build.SUPPORTED_ABIS,
+                        new File(getApplicationInfo().nativeLibraryDir));
+                runOnUiThread(() -> setBusy(false,
+                        "OpenJDK 17 ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam.\\n\\n"
+                                + report));
+            } catch (Exception e) {
+                runOnUiThread(() -> setBusy(false,
+                        "Falha ao instalar OpenJDK 17: " + safeMessage(e)));
+            }
         });
     }
 
@@ -591,6 +638,7 @@ public final class MainActivity extends Activity {
         if (refreshButton != null) refreshButton.setEnabled(!busy);
         if (downloadButton != null) downloadButton.setEnabled(!busy);
         if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
+        if (runtimeInstallButton != null) runtimeInstallButton.setEnabled(!busy);
         if (progressBar != null) {
             progressBar.setVisibility(busy ? android.view.View.VISIBLE : android.view.View.GONE);
             progressBar.setIndeterminate(true);
