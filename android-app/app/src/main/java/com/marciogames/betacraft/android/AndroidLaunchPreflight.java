@@ -12,9 +12,9 @@ import java.util.jar.JarFile;
 /**
  * Honest preflight checks for the future Android game runtime.
  *
- * This class deliberately does not start a JVM. A desktop JAR alone is not an
- * Android game runtime; a compatible JVM, native launch bridge and renderer
- * must be packaged and tested before launching can be enabled.
+ * Performs a preflight of downloaded game files and Android runtime components.
+ * The JNI JVM bootstrap can run a JVM self-test, but Minecraft launch remains
+ * blocked until the renderer and touch-input integration are packaged and tested.
  */
 final class AndroidLaunchPreflight {
     private AndroidLaunchPreflight() { }
@@ -38,36 +38,36 @@ final class AndroidLaunchPreflight {
                 + (jvmReady && jliReady && runtimeVersionReady ? "" :
                 " (requires AArch64 libjvm.so, libjli.so and matching release file)"));
         boolean launchBridgeReady = new File(nativeLibraryDir, "libbetacraft_runtime.so").isFile();
-        lines.add((launchBridgeReady ? "OK" : "FALTA")
-                + " — ponte nativa de execução (libbetacraft_runtime.so)");
+        lines.add((launchBridgeReady ? "OK" : "MISSING")
+                + " — native JVM bootstrap (libbetacraft_runtime.so)");
         boolean rendererReady = new File(nativeLibraryDir, "libbetacraft_renderer.so").isFile();
-        lines.add((rendererReady ? "OK" : "FALTA")
-                + " — ponte de renderização/input (libbetacraft_renderer.so)");
+        lines.add((rendererReady ? "OK" : "MISSING")
+                + " — rendering/input bridge (libbetacraft_renderer.so)");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
                 && runtimeVersionReady && launchBridgeReady && rendererReady;
         lines.add("");
         lines.add(ready
-                ? "Pré-verificação concluída. Ainda é necessário testar o lançamento real."
-                : "NÃO PRONTO PARA EXECUTAR: o launcher ainda não contém todos os componentes do motor Android.");
+                ? "Preflight complete. The actual game launch still needs testing."
+                : "NOT READY TO LAUNCH: required Android game-engine components are still missing.");
         return join(lines);
     }
 
     private static boolean checkJar(File dataRoot, String version, List<String> lines) {
         File jar = new File(new File(dataRoot, "versions"), version + ".jar");
         if (!jar.isFile() || jar.length() == 0) {
-            lines.add("FALTA — JAR da versão selecionada");
+            lines.add("MISSING — selected version JAR");
             return false;
         }
         try (JarFile archive = new JarFile(jar)) {
             if (archive.size() == 0) {
-                lines.add("INVÁLIDO — JAR sem entradas");
+                lines.add("INVALID — JAR has no entries");
                 return false;
             }
-            lines.add("OK — JAR legível (" + archive.size() + " entradas)");
+            lines.add("OK — Readable JAR (" + archive.size() + " entries)");
             return true;
         } catch (Exception e) {
-            lines.add("INVÁLIDO — JAR não pôde ser aberto: " + e.getClass().getSimpleName());
+            lines.add("INVALID — JAR could not be opened: " + e.getClass().getSimpleName());
             return false;
         }
     }
@@ -75,7 +75,7 @@ final class AndroidLaunchPreflight {
     private static boolean checkMetadata(File dataRoot, String version, List<String> lines) {
         File info = new File(new File(new File(dataRoot, "versions"), "jsons"), version + ".info");
         if (!info.isFile() || info.length() == 0) {
-            lines.add("FALTA — metadados .info da versão");
+            lines.add("MISSING — version .info metadata");
             return false;
         }
         String launchMethod = null;
@@ -94,7 +94,7 @@ final class AndroidLaunchPreflight {
             return false;
         }
         if (launchMethod == null || launchMethod.isEmpty()) {
-            lines.add("AVISO — metadados sem launch-method; o método ainda precisaria ser detectado");
+            lines.add("NOTICE — metadata has no launch-method; automatic detection is still needed");
             return true;
         }
         lines.add("OK — launch-method declarado: " + launchMethod);
@@ -115,16 +115,16 @@ final class AndroidLaunchPreflight {
                 }
             }
         } catch (Exception e) {
-            lines.add("FALTA — não foi possível ler launch-method");
+            lines.add("MISSING — could not read launch-method");
             return false;
         }
         if (methodName == null || methodName.isEmpty()) {
-            lines.add("AVISO — versão sem launch-method declarado; pode exigir detecção especial");
+            lines.add("NOTICE — version does not declare a launch-method; special detection may be required");
             return false;
         }
         if (!methodName.matches("[A-Za-z0-9._-]{1,100}") || ".".equals(methodName)
                 || "..".equals(methodName)) {
-            lines.add("INVÁLIDO — nome de launch-method inseguro");
+            lines.add("INVALID — unsafe launch-method name");
             return false;
         }
         File jar = new File(new File(new File(dataRoot, "launcher"), "launch-methods"),
@@ -137,14 +137,14 @@ final class AndroidLaunchPreflight {
                 ready = false;
             }
         }
-        lines.add((ready ? "OK" : "FALTA") + " — JAR do método de lançamento "
-                + methodName + (ready ? "" : " (use Preparar método de lançamento)"));
+        lines.add((ready ? "OK" : "MISSING") + " — launch-method JAR "
+                + methodName + (ready ? "" : " (use Install launch method)"));
         return ready;
     }
 
     private static boolean checkAbi(String[] supportedAbis, List<String> lines) {
         if (supportedAbis == null || supportedAbis.length == 0) {
-            lines.add("FALTA — arquitetura Android não identificada");
+            lines.add("MISSING — Android architecture was not detected");
             return false;
         }
         StringBuilder value = new StringBuilder();
@@ -154,7 +154,7 @@ final class AndroidLaunchPreflight {
             value.append(abi);
             if ("arm64-v8a".equals(abi) || "armeabi-v7a".equals(abi)) arm = true;
         }
-        lines.add((arm ? "OK" : "AVISO") + " — ABI do dispositivo: " + value);
+        lines.add((arm ? "OK" : "NOTICE") + " — ABI do dispositivo: " + value);
         return arm;
     }
 
