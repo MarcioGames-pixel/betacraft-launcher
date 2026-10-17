@@ -330,17 +330,18 @@ public final class MainActivity extends Activity {
                 jarUrl = normalizeDownloadUrl(jarUrl.trim());
 
                 File jarFile = new File(versionsDir, selected + ".jar");
-                if (jarFile.isFile() && jarFile.length() > 0) {
+                String expectedSha1 = property(infoText, "sha1");
+                if (jarFile.isFile() && isValidJar(jarFile, expectedSha1)) {
                     runOnUiThread(() -> setBusy(false,
-                            "Já existe um JAR para " + selected + ". Caminho: "
+                            "JAR existente validado para " + selected + ". Caminho: "
                                     + jarFile.getAbsolutePath()));
                     return;
                 }
 
                 final String finalJarUrl = jarUrl;
-                runOnUiThread(() -> status.setText("Baixando JAR: " + selected));
+                runOnUiThread(() -> status.setText("Baixando JAR: " + selected
+                        + " (arquivo ausente, incompleto ou inválido será substituído)"));
 
-                String expectedSha1 = property(infoText, "sha1");
                 downloadFile(finalJarUrl, jarFile, expectedSha1);
 
                 runOnUiThread(() -> {
@@ -429,6 +430,25 @@ public final class MainActivity extends Activity {
             return body;
         } finally {
             if (connection != null) connection.disconnect();
+        }
+    }
+
+    private boolean isValidJar(File file, String expectedSha1) {
+        if (file == null || !file.isFile() || file.length() == 0) return false;
+        try (java.util.jar.JarFile archive = new java.util.jar.JarFile(file)) {
+            if (archive.size() == 0) return false;
+        } catch (Exception invalidArchive) {
+            return false;
+        }
+        if (expectedSha1 == null || expectedSha1.trim().isEmpty()) return true;
+        try (InputStream input = new BufferedInputStream(new FileInputStream(file))) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            byte[] buffer = new byte[32 * 1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
+            return expectedSha1.trim().equalsIgnoreCase(toHex(digest.digest()));
+        } catch (Exception invalidDigest) {
+            return false;
         }
     }
 
