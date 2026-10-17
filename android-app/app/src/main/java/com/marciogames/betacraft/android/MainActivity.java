@@ -53,6 +53,7 @@ public final class MainActivity extends Activity {
     private Button runtimeCheckButton;
     private Button runtimeInstallButton;
     private Button runtimeInstallJava8Button;
+    private Button runtimeInstallRecommendedButton;
     private ProgressBar progressBar;
     private File dataRoot;
     private volatile boolean activityAlive = true;
@@ -150,6 +151,17 @@ public final class MainActivity extends Activity {
         runtime8Params.topMargin = dp(8);
         root.addView(runtimeInstallJava8Button, runtime8Params);
         runtimeInstallJava8Button.setOnClickListener(v -> installRuntime(8));
+
+        runtimeInstallRecommendedButton = new Button(this);
+        runtimeInstallRecommendedButton.setText("Instalar Java recomendado para esta versão");
+        LinearLayout.LayoutParams recommendedParams = matchWrap();
+        recommendedParams.topMargin = dp(8);
+        root.addView(runtimeInstallRecommendedButton, recommendedParams);
+        runtimeInstallRecommendedButton.setOnClickListener(v -> {
+            String selected = versionSpinner == null || versionSpinner.getSelectedItem() == null
+                    ? "" : String.valueOf(versionSpinner.getSelectedItem());
+            installRuntime(AndroidLaunchPreflight.recommendedJavaMajor(selected));
+        });
 
         runtimeCheckButton = new Button(this);
         runtimeCheckButton.setText("Verificar requisitos para executar");
@@ -649,6 +661,7 @@ public final class MainActivity extends Activity {
         if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
         if (runtimeInstallButton != null) runtimeInstallButton.setEnabled(!busy);
         if (runtimeInstallJava8Button != null) runtimeInstallJava8Button.setEnabled(!busy);
+        if (runtimeInstallRecommendedButton != null) runtimeInstallRecommendedButton.setEnabled(!busy);
         if (progressBar != null) {
             progressBar.setVisibility(busy ? android.view.View.VISIBLE : android.view.View.GONE);
             progressBar.setIndeterminate(true);
