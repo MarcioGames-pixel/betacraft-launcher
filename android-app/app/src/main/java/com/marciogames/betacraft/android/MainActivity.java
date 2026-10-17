@@ -414,7 +414,7 @@ public final class MainActivity extends Activity {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setConnectTimeout(15000);
         connection.setReadTimeout(20000);
-        connection.setInstanceFollowRedirects(true);
+        connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("GET");
         connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.2");
         int code = connection.getResponseCode();
