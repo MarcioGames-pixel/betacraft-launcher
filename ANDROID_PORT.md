@@ -6,23 +6,25 @@ This branch keeps the original desktop launcher unchanged and adds a separate na
 
 Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**, or push changes to this branch. Download the `betacraft-android-debug` artifact from a successful run.
 
-## Implemented in this stage
+## Implemented
 
-- Native Android launcher screen; no Swing/AWT UI is used in the Android module.
+- Native Android launcher screen; no Swing/AWT UI in the Android module.
 - Saves the selected version using Android preferences.
-- Creates app-private directories for versions, version metadata, instances, addons, language files, launch methods, assets, and logs.
-- Tries to fetch the BetaCraft version catalogue over HTTPS on a background thread.
-- Caches the catalogue locally so the list can still be shown when offline.
-- Keeps a small fallback list if neither the network nor a cache is available.
-- Shows the app-private data directory on screen.
+- Creates app-private directories for versions, metadata, instances, addons, language files, launch methods, assets, and logs.
+- Fetches the BetaCraft version catalogue over HTTPS on a background thread and caches it for offline display.
+- Downloads a selected version's `.info` metadata and the JAR URL declared in that metadata.
+- Shows download progress when the server reports a content length.
+- Downloads to temporary files, rejects empty JARs, verifies SHA-1 when metadata supplies it, and then moves the result into the versions directory.
+- Uses HTTPS only; known BetaCraft HTTP links are upgraded to HTTPS. Other HTTP links and insecure redirects are rejected.
+- Stores files in the app-private directory shown in the UI.
 
-## Not implemented yet
+## Important limitations
 
-This is **not yet a working Minecraft launcher**. The current Play button reports the missing functionality rather than pretending to start a game.
+This is **not yet a working Minecraft launcher**. The Play button still reports the missing functionality rather than pretending to start a game. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
 
 Remaining work:
-1. Download and validate version metadata and game JARs; verify checksums where supplied.
-2. Implement version/profile and instance management.
+1. Validate metadata formats and test downloads against the live catalogue.
+2. Add version/profile and instance management.
 3. Integrate an Android-compatible Java runtime and launch pipeline instead of desktop `ProcessBuilder` assumptions.
 4. Integrate a compatible rendering/input layer for legacy Minecraft versions and test each version separately.
 5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
