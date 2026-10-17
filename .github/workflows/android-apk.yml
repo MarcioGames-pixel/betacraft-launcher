@@ -12,6 +12,10 @@ on:
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
+concurrency:
+  group: betacraft-android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
