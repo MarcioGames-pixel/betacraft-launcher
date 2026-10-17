@@ -13,8 +13,6 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -149,12 +147,14 @@ final class AndroidRuntimeInstaller {
                     throw new IllegalStateException("O arquivo contém entradas demais.");
                 }
                 String name = entry.getName();
-                Path root = destination.getCanonicalFile().toPath();
-                Path target = root.resolve(name).normalize();
-                if (name.startsWith("/") || !target.startsWith(root)) {
+                File root = destination.getCanonicalFile();
+                File output = new File(destination, name);
+                String rootPath = root.getPath() + File.separator;
+                String targetPath = output.getCanonicalPath();
+                if (name.startsWith("/") || !(targetPath.equals(root.getPath())
+                        || targetPath.startsWith(rootPath))) {
                     throw new IllegalStateException("Caminho inseguro no arquivo do runtime.");
                 }
-                File output = target.toFile();
                 if (entry.isDirectory()) {
                     if (!output.mkdirs() && !output.isDirectory()) {
                         throw new IllegalStateException("Falha ao criar diretório do runtime.");
@@ -166,8 +166,10 @@ final class AndroidRuntimeInstaller {
                     throw new IllegalStateException("Falha ao criar pasta do runtime.");
                 }
                 if (entry.isSymbolicLink()) {
-                    Path linkTarget = Paths.get(entry.getLinkName());
-                    if (linkTarget.isAbsolute() || !target.getParent().resolve(linkTarget).normalize().startsWith(root)) {
+                    File linkTarget = new File(output.getParentFile(), entry.getLinkName());
+                    String resolvedLink = linkTarget.getCanonicalPath();
+                    if (new File(entry.getLinkName()).isAbsolute()
+                            || !(resolvedLink.equals(root.getPath()) || resolvedLink.startsWith(rootPath))) {
                         throw new IllegalStateException("Link simbólico inseguro no runtime.");
                     }
                     if (output.exists()) {
@@ -177,11 +179,13 @@ final class AndroidRuntimeInstaller {
                     continue;
                 }
                 if (entry.isLink()) {
-                    Path hardTarget = root.resolve(entry.getLinkName()).normalize();
-                    if (!hardTarget.startsWith(root) || !hardTarget.toFile().isFile()) {
+                    File hardTarget = new File(root, entry.getLinkName());
+                    String hardTargetPath = hardTarget.getCanonicalPath();
+                    if (!(hardTargetPath.equals(root.getPath()) || hardTargetPath.startsWith(rootPath))
+                            || !hardTarget.isFile()) {
                         throw new IllegalStateException("Link rígido inválido no runtime.");
                     }
-                    copy(hardTarget.toFile(), output);
+                    copy(hardTarget, output);
                     continue;
                 }
                 if (!entry.isFile()) continue;
