@@ -220,10 +220,10 @@ final class AndroidRuntimeInstaller {
                 if (entry.getMode() != 0) {
                     output.setExecutable((entry.getMode() & 0111) != 0, false);
                 }
-                if ((entries & 127) == 0) progress.update("Extraindo OpenJDK " + major, entries, MAX_ENTRIES);
+                if ((entries & 127) == 0) progress.update("Extracting OpenJDK " + major, entries, MAX_ENTRIES);
             }
         }
-        progress.update("Validando OpenJDK " + major, expanded, MAX_UNPACKED_BYTES);
+        progress.update("Validating OpenJDK " + major, expanded, MAX_UNPACKED_BYTES);
     }
 
     static boolean hasCompatibleRuntime(File root, int expectedMajor) {
