@@ -140,7 +140,7 @@ final class AndroidLaunchPreflight {
                 while ((line = reader.readLine()) != null) {
                     if (!line.startsWith("JAVA_VERSION=")) continue;
                     String value = line.substring("JAVA_VERSION=".length())
-                            .replace("\\"", "").trim();
+                            .replace("\"", "").trim();
                     java.util.regex.Matcher matcher = java.util.regex.Pattern
                             .compile("^(?:1\\.)?(\\d+)")
                             .matcher(value);
