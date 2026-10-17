@@ -77,7 +77,7 @@ final class AndroidRuntimeInstaller {
         }
         deleteTree(backup);
         deleteTree(archive);
-        progress.update("Runtime Java " + major + " instalado e validado", 1, 1);
+        progress.update("Java " + major + " runtime installed and validated", 1, 1);
     }
 
     private static void download(File destination, int major, Progress progress) throws Exception {
@@ -86,7 +86,7 @@ final class AndroidRuntimeInstaller {
         try {
             for (int redirects = 0; redirects <= 5; redirects++) {
                 if (!"https".equalsIgnoreCase(current.getProtocol())) {
-                    throw new IllegalStateException("O download do runtime exige HTTPS.");
+                    throw new IllegalStateException("Runtime downloads require HTTPS.");
                 }
                 String host = current.getHost().toLowerCase(java.util.Locale.ROOT);
                 if (!(host.equals("github.com") || host.equals("release-assets.githubusercontent.com")
@@ -110,11 +110,11 @@ final class AndroidRuntimeInstaller {
                     continue;
                 }
                 if (code < 200 || code >= 300) {
-                    throw new IllegalStateException("Download do runtime respondeu HTTP " + code);
+                    throw new IllegalStateException("Runtime download returned HTTP " + code);
                 }
                 long total = connection.getContentLength();
                 if (total > MAX_ARCHIVE_BYTES) {
-                    throw new IllegalStateException("Arquivo do runtime excede o limite de tamanho.");
+                    throw new IllegalStateException("Runtime archive exceeds the size limit.");
                 }
                 long received = 0;
                 byte[] buffer = new byte[32768];
@@ -124,19 +124,19 @@ final class AndroidRuntimeInstaller {
                     while ((count = input.read(buffer)) != -1) {
                         received += count;
                         if (received > MAX_ARCHIVE_BYTES) {
-                            throw new IllegalStateException("Download excedeu 100 MiB.");
+                            throw new IllegalStateException("Download exceeded 100 MiB.");
                         }
                         output.write(buffer, 0, count);
-                        progress.update("Baixando OpenJDK " + major + " ARM64", received, total);
+                        progress.update("Downloading OpenJDK " + major + " ARM64", received, total);
                     }
                     output.getFD().sync();
                 }
                 if (received < 1024 * 1024) {
-                    throw new IllegalStateException("Arquivo do runtime incompleto.");
+                    throw new IllegalStateException("Runtime archive is incomplete.");
                 }
                 return;
             }
-            throw new IllegalStateException("Muitos redirecionamentos no download do runtime.");
+            throw new IllegalStateException("Too many runtime download redirects.");
         } finally {
             if (connection != null) connection.disconnect();
         }
@@ -164,7 +164,7 @@ final class AndroidRuntimeInstaller {
                 String targetPath = output.getCanonicalPath();
                 if (name.startsWith("/") || !(targetPath.equals(root.getPath())
                         || targetPath.startsWith(rootPath))) {
-                    throw new IllegalStateException("Caminho inseguro no arquivo do runtime.");
+                    throw new IllegalStateException("Unsafe path in runtime archive.");
                 }
                 if (entry.isDirectory()) {
                     if (!output.mkdirs() && !output.isDirectory()) {
@@ -174,7 +174,7 @@ final class AndroidRuntimeInstaller {
                 }
                 File parent = output.getParentFile();
                 if (parent != null && !parent.mkdirs() && !parent.isDirectory()) {
-                    throw new IllegalStateException("Falha ao criar pasta do runtime.");
+                    throw new IllegalStateException("Could not create a runtime folder.");
                 }
                 if (entry.isSymbolicLink()) {
                     File linkTarget = new File(output.getParentFile(), entry.getLinkName());
@@ -212,10 +212,10 @@ final class AndroidRuntimeInstaller {
                         written += count;
                         expanded += count;
                         if (expanded > MAX_UNPACKED_BYTES || written > declared) {
-                            throw new IllegalStateException("Entrada do runtime excedeu o tamanho permitido.");
+                            throw new IllegalStateException("Runtime entry exceeded its declared size.");
                         }
                     }
-                    if (written != declared) throw new IllegalStateException("Entrada truncada no runtime.");
+                    if (written != declared) throw new IllegalStateException("Truncated runtime archive entry.");
                 }
                 if (entry.getMode() != 0) {
                     output.setExecutable((entry.getMode() & 0111) != 0, false);
