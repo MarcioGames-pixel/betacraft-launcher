@@ -118,7 +118,7 @@ final class AndroidLaunchPreflight {
         // and Java 17 is the practical baseline for those versions.
         String value = version == null ? "" : version.trim();
         java.util.regex.Matcher matcher = java.util.regex.Pattern
-                .compile("^(?:release[- ]?)?(\\d+)\\.(\\d+)(?:\\.|$)")
+                .compile("(?i)(?:^|[^0-9])(?:release[- ]*)?(\\d+)\\.(\\d+)(?:\\.|$)")
                 .matcher(value);
         if (matcher.find()) {
             try {
