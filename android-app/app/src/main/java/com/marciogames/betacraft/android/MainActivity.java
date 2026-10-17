@@ -234,7 +234,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("BetaCraft for Android is an early port. Install the matching ARM64 Java runtime and the version launch method before testing. The native JVM bridge is being added; Minecraft rendering, input and legacy LWJGL compatibility are not complete yet.");
+        note.setText("BetaCraft for Android is an early port. Install the matching ARM64 Java runtime and the version launch method before testing. A native JVM bootstrap is included, but Minecraft rendering, touch input and legacy LWJGL compatibility are not complete yet.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -299,7 +299,7 @@ public final class MainActivity extends Activity {
                     body = readAll(input);
                 }
                 List<String> downloaded = parseVersionList(body);
-                if (downloaded.isEmpty()) throw new IllegalStateException("Catálogo vazio ou inválido.");
+                if (downloaded.isEmpty()) throw new IllegalStateException("The version catalog is empty or invalid.");
 
                 writeAtomically(new File(dataRoot, "version_list.txt"),
                         body.getBytes(StandardCharsets.UTF_8));
@@ -479,7 +479,7 @@ public final class MainActivity extends Activity {
                         android.os.Build.SUPPORTED_ABIS,
                         new File(getApplicationInfo().nativeLibraryDir));
                 runOnUiThread(() -> setBusy(false,
-                        "OpenJDK " + javaMajor + " ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam. Relatório: "
+                        "OpenJDK " + javaMajor + " ARM64 installed and validated. The JVM bootstrap is available, but the Minecraft renderer and input layer are still missing. Report: "
                                 + report));
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
@@ -500,7 +500,7 @@ public final class MainActivity extends Activity {
                 body = readAll(input);
             }
             if (!hasProperty(body, "url")) {
-                throw new IllegalStateException("Metadados inválidos: propriedade 'url' ausente.");
+                throw new IllegalStateException("Invalid metadata: required property 'url' is missing.");
             }
             writeAtomically(destination, body.getBytes(StandardCharsets.UTF_8));
             return body;
@@ -574,11 +574,11 @@ public final class MainActivity extends Activity {
             if (expectedSha1 != null && !expectedSha1.trim().isEmpty()) {
                 String actual = toHex(digest.digest());
                 if (!actual.equalsIgnoreCase(expectedSha1.trim())) {
-                    throw new IllegalStateException("SHA-1 não confere; arquivo temporário descartado.");
+                    throw new IllegalStateException("SHA-1 mismatch; temporary file discarded.");
                 }
             }
             if (destination.exists() && !destination.delete()) {
-                throw new IllegalStateException("Não foi possível substituir o arquivo de destino.");
+                throw new IllegalStateException("Could not replace the destination file.");
             }
             if (!temporary.renameTo(destination)) {
                 copyFile(temporary, destination);
@@ -597,7 +597,7 @@ public final class MainActivity extends Activity {
         for (int redirects = 0; redirects <= 5; redirects++) {
             if (!"https".equalsIgnoreCase(current.getProtocol())
                     || current.getUserInfo() != null) {
-                throw new IllegalStateException("Conexão insegura recusada: " + current.getProtocol());
+                throw new IllegalStateException("Rejected insecure connection: " + current.getProtocol());
             }
             HttpURLConnection connection = (HttpURLConnection) current.openConnection();
             connection.setConnectTimeout(15000);
@@ -646,7 +646,7 @@ public final class MainActivity extends Activity {
                 || url.getHost().endsWith(".betacraft.uk"))) {
             return new URL("https", url.getHost(), url.getPort(), url.getFile()).toString();
         }
-        throw new IllegalStateException("URL de download HTTP recusada; somente HTTPS é permitido.");
+        throw new IllegalStateException("HTTP download URL rejected; HTTPS is required.");
     }
 
     private void replaceVersions(List<String> newVersions, boolean preserveSelection) {
@@ -736,7 +736,7 @@ public final class MainActivity extends Activity {
             output.getFD().sync();
         }
         if (destination.exists() && !destination.delete()) {
-            throw new IllegalStateException("Não foi possível atualizar " + destination.getName());
+            throw new IllegalStateException("Could not update " + destination.getName());
         }
         if (!temporary.renameTo(destination)) {
             copyFile(temporary, destination);
