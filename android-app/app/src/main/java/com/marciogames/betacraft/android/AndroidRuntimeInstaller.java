@@ -170,7 +170,7 @@ final class AndroidRuntimeInstaller {
                     if (linkTarget.isAbsolute() || !target.getParent().resolve(linkTarget).normalize().startsWith(root)) {
                         throw new IllegalStateException("Link simbólico inseguro no runtime.");
                     }
-                    if (output.exists() || android.system.Os.readlink(output.getAbsolutePath()) != null) {
+                    if (output.exists()) {
                         output.delete();
                     }
                     Os.symlink(entry.getLinkName(), output.getAbsolutePath());
