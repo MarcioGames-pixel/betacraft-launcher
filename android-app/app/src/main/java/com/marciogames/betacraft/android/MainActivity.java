@@ -1,6 +1,7 @@
 package com.marciogames.betacraft.android;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -52,6 +53,7 @@ public final class MainActivity extends Activity {
     private Button downloadButton;
     private Button launchMethodButton;
     private Button runtimeCheckButton;
+    private Button runtimeTestButton;
     private Button runtimeInstallButton;
     private Button runtimeInstallJava8Button;
     private Button runtimeInstallRecommendedButton;
@@ -72,33 +74,36 @@ public final class MainActivity extends Activity {
     private void buildInterface() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.rgb(29, 31, 34));
+        scroll.setBackgroundColor(Color.rgb(25, 29, 36));
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(22), dp(26), dp(22), dp(24));
+        root.setPadding(dp(20), dp(28), dp(20), dp(24));
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         scroll.addView(root);
 
         TextView title = new TextView(this);
         title.setText("BetaCraft");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(32);
+        title.setTextColor(Color.rgb(236, 166, 63));
+        title.setTextSize(30);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        title.setGravity(Gravity.CENTER);
         root.addView(title, matchWrap());
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Android port • early development");
-        subtitle.setTextColor(Color.LTGRAY);
+        subtitle.setText("MINECRAFT JAVA EDITION • ANDROID");
+        subtitle.setTextColor(Color.rgb(177, 185, 198));
+        subtitle.setGravity(Gravity.CENTER);
         subtitle.setTextSize(14);
         LinearLayout.LayoutParams subtitleParams = matchWrap();
         subtitleParams.topMargin = dp(5);
         root.addView(subtitle, subtitleParams);
 
         TextView versionLabel = new TextView(this);
-        versionLabel.setText("Minecraft version");
+        versionLabel.setText("GAME VERSION");
         versionLabel.setTextColor(Color.WHITE);
-        versionLabel.setTextSize(16);
+        versionLabel.setTextSize(13);
+        versionLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         LinearLayout.LayoutParams labelParams = matchWrap();
         labelParams.topMargin = dp(28);
         root.addView(versionLabel, labelParams);
@@ -126,42 +131,48 @@ public final class MainActivity extends Activity {
         });
 
         refreshButton = new Button(this);
-        refreshButton.setText("Atualizar lista de versões");
+        refreshButton.setText("Refresh version list");
+        styleButton(refreshButton, false);
         LinearLayout.LayoutParams refreshParams = matchWrap();
         refreshParams.topMargin = dp(10);
         root.addView(refreshButton, refreshParams);
         refreshButton.setOnClickListener(v -> refreshVersions(true));
 
         downloadButton = new Button(this);
-        downloadButton.setText("Baixar versão selecionada");
+        downloadButton.setText("Download selected version");
+        styleButton(downloadButton, true);
         LinearLayout.LayoutParams downloadParams = matchWrap();
         downloadParams.topMargin = dp(8);
         root.addView(downloadButton, downloadParams);
         downloadButton.setOnClickListener(v -> downloadSelectedVersion());
 
         launchMethodButton = new Button(this);
-        launchMethodButton.setText("Preparar método de lançamento");
+        launchMethodButton.setText("Install launch method");
+        styleButton(launchMethodButton, false);
         LinearLayout.LayoutParams methodParams = matchWrap();
         methodParams.topMargin = dp(8);
         root.addView(launchMethodButton, methodParams);
         launchMethodButton.setOnClickListener(v -> prepareLaunchMethod());
 
         runtimeInstallButton = new Button(this);
-        runtimeInstallButton.setText("Instalar runtime Java 17 (ARM64)");
+        runtimeInstallButton.setText("Install Java 17 runtime (ARM64)");
+        styleButton(runtimeInstallButton, false);
         LinearLayout.LayoutParams runtimeInstallParams = matchWrap();
         runtimeInstallParams.topMargin = dp(8);
         root.addView(runtimeInstallButton, runtimeInstallParams);
         runtimeInstallButton.setOnClickListener(v -> installRuntime(17));
 
         runtimeInstallJava8Button = new Button(this);
-        runtimeInstallJava8Button.setText("Instalar runtime Java 8 (ARM64)");
+        runtimeInstallJava8Button.setText("Install Java 8 runtime (ARM64)");
+        styleButton(runtimeInstallJava8Button, false);
         LinearLayout.LayoutParams runtime8Params = matchWrap();
         runtime8Params.topMargin = dp(8);
         root.addView(runtimeInstallJava8Button, runtime8Params);
         runtimeInstallJava8Button.setOnClickListener(v -> installRuntime(8));
 
         runtimeInstallRecommendedButton = new Button(this);
-        runtimeInstallRecommendedButton.setText("Instalar Java recomendado para esta versão");
+        runtimeInstallRecommendedButton.setText("Install recommended Java version");
+        styleButton(runtimeInstallRecommendedButton, false);
         LinearLayout.LayoutParams recommendedParams = matchWrap();
         recommendedParams.topMargin = dp(8);
         root.addView(runtimeInstallRecommendedButton, recommendedParams);
@@ -172,11 +183,20 @@ public final class MainActivity extends Activity {
         });
 
         runtimeCheckButton = new Button(this);
-        runtimeCheckButton.setText("Verificar requisitos para executar");
+        runtimeCheckButton.setText("Check launch requirements");
+        styleButton(runtimeCheckButton, false);
         LinearLayout.LayoutParams runtimeCheckParams = matchWrap();
         runtimeCheckParams.topMargin = dp(8);
         root.addView(runtimeCheckButton, runtimeCheckParams);
         runtimeCheckButton.setOnClickListener(v -> inspectRuntime());
+
+        runtimeTestButton = new Button(this);
+        runtimeTestButton.setText("Test Java runtime");
+        styleButton(runtimeTestButton, false);
+        LinearLayout.LayoutParams runtimeTestParams = matchWrap();
+        runtimeTestParams.topMargin = dp(8);
+        root.addView(runtimeTestButton, runtimeTestParams);
+        runtimeTestButton.setOnClickListener(v -> testJavaRuntime());
 
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
@@ -189,13 +209,13 @@ public final class MainActivity extends Activity {
         status.setTextColor(Color.rgb(255, 210, 120));
         status.setTextSize(14);
         status.setGravity(Gravity.CENTER);
-        status.setText("Preparando armazenamento do launcher…");
+        status.setText("Preparing launcher storage…");
         LinearLayout.LayoutParams statusParams = matchWrap();
         statusParams.topMargin = dp(18);
         root.addView(status, statusParams);
 
         TextView storageLabel = new TextView(this);
-        storageLabel.setText("Armazenamento");
+        storageLabel.setText("GAME DATA");
         storageLabel.setTextColor(Color.WHITE);
         storageLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         storageLabel.setTextSize(15);
@@ -214,7 +234,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("O instalador oferece OpenJDK 8 e 17 ARM64. Você também pode preparar o método de lançamento definido nos metadados. Isso ainda não inicia o Minecraft: falta integrar a ponte JVM e o renderizador/input Android. Versões antigas geralmente precisam do Java 8.");
+        note.setText("BetaCraft for Android is an early port. Install the matching ARM64 Java runtime and the version launch method before testing. The native JVM bridge is being added; Minecraft rendering, input and legacy LWJGL compatibility are not complete yet.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -234,7 +254,7 @@ public final class MainActivity extends Activity {
             File directory = new File(dataRoot, relative);
             ok &= directory.mkdirs() || directory.isDirectory();
         }
-        if (!ok) Toast.makeText(this, "Não foi possível criar todas as pastas",
+        if (!ok) Toast.makeText(this, "Could not create all launcher folders",
                 Toast.LENGTH_LONG).show();
     }
 
@@ -248,7 +268,7 @@ public final class MainActivity extends Activity {
             List<String> cached = parseVersionList(readAll(input));
             if (!cached.isEmpty()) {
                 replaceVersions(cached, true);
-                status.setText("Lista em cache. Tentando atualizar pela internet…");
+                status.setText("Using cached versions. Checking for updates…");
             } else {
                 setFallbackVersions();
             }
@@ -269,7 +289,7 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshVersions(boolean showToast) {
-        setBusy(true, "Carregando catálogo de versões…");
+        setBusy(true, "Loading version catalog…");
         io.execute(() -> {
             HttpURLConnection connection = null;
             try {
@@ -285,14 +305,14 @@ public final class MainActivity extends Activity {
                         body.getBytes(StandardCharsets.UTF_8));
                 runOnUiThread(() -> {
                     replaceVersions(downloaded, true);
-                    setBusy(false, "Catálogo atualizado: " + downloaded.size()
-                            + " versões disponíveis. Escolha uma e toque em Baixar.");
-                    if (showToast) Toast.makeText(this, "Lista de versões atualizada",
+                    setBusy(false, "Version catalog updated: " + downloaded.size()
+                            + " versions available. Select one to continue.");
+                    if (showToast) Toast.makeText(this, "Version list updated",
                             Toast.LENGTH_SHORT).show();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    setBusy(false, "Falha ao atualizar o catálogo; mantendo a lista local. "
+                    setBusy(false, "Could not refresh the catalog; keeping local versions. "
                             + safeMessage(e));
                 });
             } finally {
@@ -303,21 +323,21 @@ public final class MainActivity extends Activity {
 
     private void downloadSelectedVersion() {
         if (versionSpinner.getSelectedItem() == null) {
-            status.setText("Nenhuma versão selecionada.");
+            status.setText("Select a Minecraft version first.");
             return;
         }
         String selected = String.valueOf(versionSpinner.getSelectedItem());
         if (!isSafeVersionName(selected)) {
-            status.setText("Nome de versão inválido; download cancelado.");
+            status.setText("Invalid version name; download cancelled.");
             return;
         }
-        setBusy(true, "Preparando download de " + selected + "…");
+        setBusy(true, "Preparing download for " + selected + "…");
         io.execute(() -> {
             try {
                 File versionsDir = new File(dataRoot, "versions");
                 File infoDir = new File(versionsDir, "jsons");
                 if (!(infoDir.mkdirs() || infoDir.isDirectory())) {
-                    throw new IllegalStateException("Não foi possível criar a pasta de metadados.");
+                    throw new IllegalStateException("Could not create the metadata directory.");
                 }
 
                 File infoFile = new File(infoDir, selected + ".info");
@@ -333,7 +353,7 @@ public final class MainActivity extends Activity {
 
                 String jarUrl = property(infoText, "url");
                 if (jarUrl == null || jarUrl.trim().isEmpty()) {
-                    throw new IllegalStateException("O .info não contém uma URL de JAR para esta versão.");
+                    throw new IllegalStateException("The .info file does not contain a JAR URL for this version.");
                 }
                 jarUrl = normalizeDownloadUrl(jarUrl.trim());
 
@@ -341,41 +361,41 @@ public final class MainActivity extends Activity {
                 String expectedSha1 = property(infoText, "sha1");
                 if (jarFile.isFile() && isValidJar(jarFile, expectedSha1)) {
                     runOnUiThread(() -> setBusy(false,
-                            "JAR existente validado para " + selected + ". Caminho: "
+                            "Existing JAR validated for " + selected + ". Path: "
                                     + jarFile.getAbsolutePath()));
                     return;
                 }
 
                 final String finalJarUrl = jarUrl;
-                runOnUiThread(() -> status.setText("Baixando JAR: " + selected
-                        + " (arquivo ausente, incompleto ou inválido será substituído)"));
+                runOnUiThread(() -> status.setText("Downloading JAR: " + selected
+                        + " (missing, incomplete or invalid files will be replaced)"));
 
                 downloadFile(finalJarUrl, jarFile, expectedSha1);
 
                 runOnUiThread(() -> {
-                    setBusy(false, "Download concluído: " + selected + "\n"
+                    setBusy(false, "Download complete: " + selected + "\n"
                             + jarFile.getAbsolutePath()
-                            + "\nO próximo passo é integrar o runtime e o lançamento.");
-                    Toast.makeText(this, "Versão baixada", Toast.LENGTH_LONG).show();
+                            + "\nNext: validate the runtime and launch pipeline.");
+                    Toast.makeText(this, "Version downloaded", Toast.LENGTH_LONG).show();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
-                        "Download falhou: " + safeMessage(e)));
+                        "Download failed: " + safeMessage(e)));
             }
         });
     }
 
     private void prepareLaunchMethod() {
         if (versionSpinner == null || versionSpinner.getSelectedItem() == null) {
-            status.setText("Selecione uma versão primeiro.");
+            status.setText("Select a version first.");
             return;
         }
         String selected = String.valueOf(versionSpinner.getSelectedItem());
         if (!isSafeVersionName(selected)) {
-            status.setText("Nome de versão inválido.");
+            status.setText("Invalid version name.");
             return;
         }
-        setBusy(true, "Preparando método de lançamento de " + selected + "…");
+        setBusy(true, "Installing launch method for " + selected + "…");
         io.execute(() -> {
             try {
                 String report = AndroidLaunchMethodInstaller.install(dataRoot, selected,
@@ -385,18 +405,41 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> setBusy(false, report));
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
-                        "Não foi possível preparar o método de lançamento: " + safeMessage(e)));
+                        "Could not install the launch method: " + safeMessage(e)));
+            }
+        });
+    }
+
+    private void testJavaRuntime() {
+        String selected = versionSpinner == null || versionSpinner.getSelectedItem() == null
+                ? "" : String.valueOf(versionSpinner.getSelectedItem());
+        int major = AndroidLaunchPreflight.recommendedJavaMajor(selected);
+        File home = new File(dataRoot, "runtime/java" + major);
+        if (!AndroidRuntimeInstaller.hasCompatibleRuntime(home, major)) {
+            status.setText("Java " + major + " ARM64 is not installed or failed architecture validation. Install the runtime first.");
+            return;
+        }
+        setBusy(true, "Starting the Java " + major + " runtime self-test…");
+        io.execute(() -> {
+            try {
+                int result = AndroidJvmBridge.test(home);
+                runOnUiThread(() -> setBusy(false, result == 0
+                        ? "Java " + major + " runtime self-test completed successfully. See logcat for JVM output."
+                        : "Java " + major + " returned exit code " + result + ". Check the device log for details."));
+            } catch (Throwable e) {
+                runOnUiThread(() -> setBusy(false,
+                        "Java runtime test failed: " + safeMessage(e)));
             }
         });
     }
 
     private void inspectRuntime() {
         if (versionSpinner.getSelectedItem() == null) {
-            status.setText("Selecione uma versão antes de verificar.");
+            status.setText("Select a version before checking requirements.");
             return;
         }
         String selected = String.valueOf(versionSpinner.getSelectedItem());
-        setBusy(true, "Verificando os requisitos do motor Android…");
+        setBusy(true, "Checking Android runtime requirements…");
         io.execute(() -> {
             String report = AndroidLaunchPreflight.inspect(
                     dataRoot, selected, android.os.Build.SUPPORTED_ABIS,
@@ -411,12 +454,12 @@ public final class MainActivity extends Activity {
             if ("arm64-v8a".equals(abi)) arm64 = true;
         }
         if (!arm64) {
-            status.setText("Este pacote de runtime é ARM64; arquitetura do dispositivo não compatível.");
+            status.setText("This runtime requires a 64-bit ARM (ARM64) device.");
             return;
         }
         final String selectedVersion = versionSpinner == null || versionSpinner.getSelectedItem() == null
                 ? "" : String.valueOf(versionSpinner.getSelectedItem());
-        setBusy(true, "Preparando instalação do OpenJDK " + javaMajor + " ARM64…");
+        setBusy(true, "Installing OpenJDK " + javaMajor + " for ARM64…");
         io.execute(() -> {
             try {
                 AndroidRuntimeInstaller.install(new File(dataRoot, "runtime"), javaMajor,
@@ -517,7 +560,7 @@ public final class MainActivity extends Activity {
                         runOnUiThread(() -> {
                             progressBar.setIndeterminate(false);
                             progressBar.setProgress(percent);
-                            status.setText("Baixando… " + percent + "% ("
+                            status.setText("Downloading… " + percent + "% ("
                                     + humanSize(current) + " / " + humanSize(total) + ")");
                         });
                     } else {
@@ -628,7 +671,7 @@ public final class MainActivity extends Activity {
         String version = String.valueOf(versionSpinner.getSelectedItem());
         File jar = new File(new File(dataRoot, "versions"), version + ".jar");
         if (jar.isFile() && jar.length() > 0) {
-            status.setText("JAR já baixado para " + version + ".");
+            status.setText("JAR already downloaded for " + version + ".");
         }
     }
 
@@ -721,6 +764,16 @@ public final class MainActivity extends Activity {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format(Locale.ROOT, "%.1f KiB", bytes / 1024.0);
         return String.format(Locale.ROOT, "%.1f MiB", bytes / (1024.0 * 1024.0));
+    }
+
+    private void styleButton(Button button, boolean primary) {
+        button.setAllCaps(false);
+        button.setTextSize(14);
+        button.setTextColor(Color.WHITE);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setBackgroundTintList(ColorStateList.valueOf(primary
+                ? Color.rgb(190, 113, 35) : Color.rgb(53, 62, 76)));
+        button.setMinHeight(dp(48));
     }
 
     private void setBusy(boolean busy, String message) {
