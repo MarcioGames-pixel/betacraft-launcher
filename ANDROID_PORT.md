@@ -1,24 +1,31 @@
-# BetaCraft v1 Android port (early scaffold)
+# BetaCraft v1 Android port (early development)
 
-This branch adds a separate native Android application module and a GitHub Actions workflow that produces a debug APK. The original desktop v1 project and its Gradle build files are left unchanged.
+This branch keeps the original desktop launcher unchanged and adds a separate native Android app.
 
 ## Build
 
-Open **Actions → Android APK (BetaCraft v1 port)** and run it with **Run workflow**, or push changes to this branch. Download the `betacraft-android-debug` artifact from the successful run.
+Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**, or push changes to this branch. Download the `betacraft-android-debug` artifact from a successful run.
 
-## Important status
+## Implemented in this stage
 
-This is an initial Android UI/build scaffold, **not yet a working Minecraft launcher**. The existing v1 client is a Swing/AWT desktop application and uses desktop window classes, external Java process launching, filesystem assumptions, and desktop-oriented integrations. Those cannot be made Android-compatible simply by packaging the existing JAR as an APK.
+- Native Android launcher screen; no Swing/AWT UI is used in the Android module.
+- Saves the selected version using Android preferences.
+- Creates app-private directories for versions, version metadata, instances, addons, language files, launch methods, assets, and logs.
+- Tries to fetch the BetaCraft version catalogue over HTTPS on a background thread.
+- Caches the catalogue locally so the list can still be shown when offline.
+- Keeps a small fallback list if neither the network nor a cache is available.
+- Shows the app-private data directory on screen.
 
-The current app provides a native Android screen and a version selector to establish the APK build pipeline. The Play action explicitly reports that the game runtime is not integrated yet.
+## Not implemented yet
 
-## Remaining port work
+This is **not yet a working Minecraft launcher**. The current Play button reports the missing functionality rather than pretending to start a game.
 
-1. Replace desktop Swing/AWT UI with native Android screens.
-2. Adapt launcher storage and instance/version management to Android app storage and Android's storage model.
-3. Replace desktop `ProcessBuilder`/external-Java launch logic with an Android-compatible Java runtime integration.
+Remaining work:
+1. Download and validate version metadata and game JARs; verify checksums where supplied.
+2. Implement version/profile and instance management.
+3. Integrate an Android-compatible Java runtime and launch pipeline instead of desktop `ProcessBuilder` assumptions.
 4. Integrate a compatible rendering/input layer for legacy Minecraft versions and test each version separately.
-5. Rework authentication, downloads, addons, logging, and lifecycle/background work for Android.
-6. Add automated tests and verify the APK on real devices.
+5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
+6. Build the APK in Actions and fix any CI errors; then test on real Android devices.
 
-Do not treat the initial debug APK as evidence that Minecraft can already launch. It is only the first buildable step toward a proper port.
+A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
