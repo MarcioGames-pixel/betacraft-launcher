@@ -2,7 +2,12 @@ package com.marciogames.betacraft.android;
 
 import org.junit.Test;
 
+import java.io.File;
+import java.io.FileOutputStream;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public class AndroidLaunchPreflightTest {
     @Test
@@ -18,6 +23,33 @@ public class AndroidLaunchPreflightTest {
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("Beta 1.7.3"));
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("b1.7.3"));
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("Indev"));
+    }
+
+    @Test
+    public void acceptsOnlyAarch64ElfRuntimeLibraries() throws Exception {
+        File file = File.createTempFile("betacraft-libjvm", ".so");
+        try {
+            byte[] header = new byte[20];
+            header[0] = 0x7f;
+            header[1] = 'E';
+            header[2] = 'L';
+            header[3] = 'F';
+            header[4] = 2;   // ELF64
+            header[5] = 1;   // little-endian
+            header[18] = (byte) 183; // EM_AARCH64
+            try (FileOutputStream output = new FileOutputStream(file)) {
+                output.write(header);
+            }
+            assertTrue(AndroidRuntimeInstaller.isArm64Elf(file));
+
+            header[18] = 62; // EM_X86_64
+            try (FileOutputStream output = new FileOutputStream(file)) {
+                output.write(header);
+            }
+            assertFalse(AndroidRuntimeInstaller.isArm64Elf(file));
+        } finally {
+            file.delete();
+        }
     }
 
     @Test
