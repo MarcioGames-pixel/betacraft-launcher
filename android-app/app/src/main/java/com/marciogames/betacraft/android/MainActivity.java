@@ -50,6 +50,7 @@ public final class MainActivity extends Activity {
     private TextView storageInfo;
     private Button refreshButton;
     private Button downloadButton;
+    private Button launchMethodButton;
     private Button runtimeCheckButton;
     private Button runtimeInstallButton;
     private Button runtimeInstallJava8Button;
@@ -138,6 +139,13 @@ public final class MainActivity extends Activity {
         root.addView(downloadButton, downloadParams);
         downloadButton.setOnClickListener(v -> downloadSelectedVersion());
 
+        launchMethodButton = new Button(this);
+        launchMethodButton.setText("Preparar método de lançamento");
+        LinearLayout.LayoutParams methodParams = matchWrap();
+        methodParams.topMargin = dp(8);
+        root.addView(launchMethodButton, methodParams);
+        launchMethodButton.setOnClickListener(v -> prepareLaunchMethod());
+
         runtimeInstallButton = new Button(this);
         runtimeInstallButton.setText("Instalar runtime Java 17 (ARM64)");
         LinearLayout.LayoutParams runtimeInstallParams = matchWrap();
@@ -206,7 +214,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("O instalador oferece OpenJDK 8 e 17 ARM64 publicados pelo projeto PojavLauncher. Instalar a JVM não inclui a ponte de execução nem o renderizador/input, portanto ainda não inicia o Minecraft. Versões antigas geralmente precisam do Java 8.");
+        note.setText("O instalador oferece OpenJDK 8 e 17 ARM64. Você também pode preparar o método de lançamento definido nos metadados. Isso ainda não inicia o Minecraft: falta integrar a ponte JVM e o renderizador/input Android. Versões antigas geralmente precisam do Java 8.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -353,6 +361,31 @@ public final class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
                         "Download falhou: " + safeMessage(e)));
+            }
+        });
+    }
+
+    private void prepareLaunchMethod() {
+        if (versionSpinner == null || versionSpinner.getSelectedItem() == null) {
+            status.setText("Selecione uma versão primeiro.");
+            return;
+        }
+        String selected = String.valueOf(versionSpinner.getSelectedItem());
+        if (!isSafeVersionName(selected)) {
+            status.setText("Nome de versão inválido.");
+            return;
+        }
+        setBusy(true, "Preparando método de lançamento de " + selected + "…");
+        io.execute(() -> {
+            try {
+                String report = AndroidLaunchMethodInstaller.install(dataRoot, selected,
+                        message -> runOnUiThread(() -> {
+                            if (activityAlive && status != null) status.setText(message);
+                        }));
+                runOnUiThread(() -> setBusy(false, report));
+            } catch (Exception e) {
+                runOnUiThread(() -> setBusy(false,
+                        "Não foi possível preparar o método de lançamento: " + safeMessage(e)));
             }
         });
     }
@@ -694,6 +727,7 @@ public final class MainActivity extends Activity {
         if (status != null) status.setText(message);
         if (refreshButton != null) refreshButton.setEnabled(!busy);
         if (downloadButton != null) downloadButton.setEnabled(!busy);
+        if (launchMethodButton != null) launchMethodButton.setEnabled(!busy);
         if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
         if (runtimeInstallButton != null) runtimeInstallButton.setEnabled(!busy);
         if (runtimeInstallJava8Button != null) runtimeInstallJava8Button.setEnabled(!busy);
