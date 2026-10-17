@@ -36,12 +36,20 @@ final class AndroidLaunchMethodInstaller {
         String methodName = property(infoText, "launch-method");
         String descriptorUrl = property(infoText, "launch-method-link");
         if (methodName == null || methodName.trim().isEmpty()) {
-            throw new IllegalStateException("This version does not declare a launch-method.");
-        }
-        if (descriptorUrl == null || descriptorUrl.trim().isEmpty()) {
-            throw new IllegalStateException("The metadata does not declare launch-method-link.");
+            File versionJar = new File(new File(dataRoot, "versions"), version + ".jar");
+            methodName = AndroidLaunchMethodDetector.detect(versionJar);
+            if (methodName == null) {
+                throw new IllegalStateException("No built-in launch method was detected; this version may require a custom launch method.");
+            }
         }
         methodName = methodName.trim();
+        if (AndroidLaunchMethodDetector.isBuiltIn(methodName)) {
+            return "Built-in launch method detected: " + methodName
+                    + ". No separate launch-method JAR is required.";
+        }
+        if (descriptorUrl == null || descriptorUrl.trim().isEmpty()) {
+            throw new IllegalStateException("The metadata does not declare launch-method-link for this custom method.");
+        }
         if (!methodName.matches("[A-Za-z0-9._-]{1,100}") || ".".equals(methodName)
                 || "..".equals(methodName)) {
             throw new IllegalStateException("Invalid launch-method name.");
