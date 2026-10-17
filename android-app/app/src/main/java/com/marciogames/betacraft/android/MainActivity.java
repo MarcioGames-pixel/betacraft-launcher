@@ -428,7 +428,7 @@ public final class MainActivity extends Activity {
                         : "Java " + major + " returned exit code " + result + ". Check the device log for details."));
             } catch (Throwable e) {
                 runOnUiThread(() -> setBusy(false,
-                        "Java runtime test failed: " + safeMessage(e)));
+                        "Java runtime test failed: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage())));
             }
         });
     }
