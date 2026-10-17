@@ -50,6 +50,7 @@ public final class MainActivity extends Activity {
     private TextView storageInfo;
     private Button refreshButton;
     private Button downloadButton;
+    private Button runtimeCheckButton;
     private ProgressBar progressBar;
     private File dataRoot;
     private volatile boolean activityAlive = true;
@@ -134,6 +135,13 @@ public final class MainActivity extends Activity {
         root.addView(downloadButton, downloadParams);
         downloadButton.setOnClickListener(v -> downloadSelectedVersion());
 
+        runtimeCheckButton = new Button(this);
+        runtimeCheckButton.setText("Verificar requisitos para executar");
+        LinearLayout.LayoutParams runtimeCheckParams = matchWrap();
+        runtimeCheckParams.topMargin = dp(8);
+        root.addView(runtimeCheckButton, runtimeCheckParams);
+        runtimeCheckButton.setOnClickListener(v -> inspectRuntime());
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
         progressBar.setVisibility(android.view.View.GONE);
@@ -170,7 +178,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("O launcher pode baixar metadados e o JAR da versão selecionada. Isso ainda não integra o runtime Java nem inicia o Minecraft.");
+        note.setText("O download já funciona. A verificação de execução identifica os componentes que ainda faltam; ela não inicia o Minecraft.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -183,7 +191,7 @@ public final class MainActivity extends Activity {
         String[] directories = {
                 "versions", "versions/jsons", "launcher", "launcher/instances",
                 "launcher/addons", "launcher/launch-methods", "launcher/lang",
-                "logs", "assets"
+                "logs", "assets", "runtime", "runtime/active"
         };
         boolean ok = dataRoot.mkdirs() || dataRoot.isDirectory();
         for (String relative : directories) {
@@ -317,6 +325,21 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> setBusy(false,
                         "Download falhou: " + safeMessage(e)));
             }
+        });
+    }
+
+    private void inspectRuntime() {
+        if (versionSpinner.getSelectedItem() == null) {
+            status.setText("Selecione uma versão antes de verificar.");
+            return;
+        }
+        String selected = String.valueOf(versionSpinner.getSelectedItem());
+        setBusy(true, "Verificando os requisitos do motor Android…");
+        io.execute(() -> {
+            String report = AndroidLaunchPreflight.inspect(
+                    dataRoot, selected, android.os.Build.SUPPORTED_ABIS,
+                    new File(getApplicationInfo().nativeLibraryDir));
+            runOnUiThread(() -> setBusy(false, report));
         });
     }
 
@@ -567,6 +590,7 @@ public final class MainActivity extends Activity {
         if (status != null) status.setText(message);
         if (refreshButton != null) refreshButton.setEnabled(!busy);
         if (downloadButton != null) downloadButton.setEnabled(!busy);
+        if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
         if (progressBar != null) {
             progressBar.setVisibility(busy ? android.view.View.VISIBLE : android.view.View.GONE);
             progressBar.setIndeterminate(true);
