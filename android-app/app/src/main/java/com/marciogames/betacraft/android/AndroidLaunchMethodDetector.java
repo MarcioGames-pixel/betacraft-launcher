@@ -33,14 +33,11 @@ final class AndroidLaunchMethodDetector {
             boolean classicE = has(archive, "com/mojang/minecraft/e.class");
 
             if (rubyDung) return "rd";
-            if (oldRubyDung || applet && !networkPlayer) {
-                if (applet && server && !user) return "classic12a";
-                if (oldRubyDung || applet && !networkPlayer) return "mc";
-            }
+            if (oldRubyDung) return "mc";
             if (applet && server && !user) return "classic12a";
-            if (applet && !networkPlayer) return "classic";
             if (applet && networkPlayer && !classicE) return "classic15a";
             if (applet && networkPlayer) return "classicmp";
+            if (applet) return "classic";
             if (has(archive, "M.class")) return "4k";
             if (has(archive, "net/minecraft/client/MinecraftApplet.class")) return "indev";
             if (has(archive, "net/minecraft/client/main/Main.class")) return "1.6";
