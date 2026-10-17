@@ -497,32 +497,48 @@ public final class MainActivity extends Activity {
     }
 
     private HttpURLConnection openConnection(String address) throws Exception {
-        URL url = new URL(address);
-        if (!"https".equalsIgnoreCase(url.getProtocol())) {
-            throw new IllegalStateException("Por segurança, o download precisa usar HTTPS: "
-                    + url.getHost());
-        }
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setConnectTimeout(15000);
-        connection.setReadTimeout(20000);
-        connection.setInstanceFollowRedirects(false);
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.2");
-        int code = connection.getResponseCode();
-        if (code >= 300 && code < 400) {
-            String redirect = connection.getHeaderField("Location");
-            connection.disconnect();
-            if (redirect == null) throw new IllegalStateException("Redirecionamento sem destino.");
-            URL redirected = new URL(url, redirect);
-            if (!"https".equalsIgnoreCase(redirected.getProtocol())) {
-                throw new IllegalStateException("Redirecionamento HTTP inseguro recusado.");
+        URL current = new URL(address);
+        for (int redirects = 0; redirects <= 5; redirects++) {
+            if (!"https".equalsIgnoreCase(current.getProtocol())
+                    || current.getUserInfo() != null) {
+                throw new IllegalStateException("Conexão insegura recusada: " + current.getProtocol());
             }
-            connection = (HttpURLConnection) redirected.openConnection();
+            HttpURLConnection connection = (HttpURLConnection) current.openConnection();
             connection.setConnectTimeout(15000);
             connection.setReadTimeout(20000);
-            connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.2");
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.3");
+
+            int code;
+            try {
+                code = connection.getResponseCode();
+            } catch (Exception e) {
+                connection.disconnect();
+                throw e;
+            }
+            if (code >= 200 && code < 300) {
+                return connection;
+            }
+            if (code >= 300 && code < 400) {
+                String location = connection.getHeaderField("Location");
+                connection.disconnect();
+                if (location == null || location.trim().isEmpty() || redirects == 5) {
+                    throw new IllegalStateException("Redirecionamento ausente ou excessivo.");
+                }
+                URL redirected = new URL(current, location);
+                if (!"https".equalsIgnoreCase(redirected.getProtocol())
+                        || redirected.getUserInfo() != null) {
+                    throw new IllegalStateException("Redirecionamento inseguro recusado.");
+                }
+                current = redirected;
+                continue;
+            }
+            connection.disconnect();
+            throw new IllegalStateException("Servidor respondeu HTTP " + code + " em "
+                    + current.getHost());
         }
-        return connection;
+        throw new IllegalStateException("Muitos redirecionamentos HTTPS.");
     }
 
     private String normalizeDownloadUrl(String value) throws Exception {
