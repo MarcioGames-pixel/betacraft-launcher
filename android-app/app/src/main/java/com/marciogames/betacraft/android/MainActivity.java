@@ -382,7 +382,7 @@ public final class MainActivity extends Activity {
                         android.os.Build.SUPPORTED_ABIS,
                         new File(getApplicationInfo().nativeLibraryDir));
                 runOnUiThread(() -> setBusy(false,
-                        "OpenJDK 17 ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam.\\n\\n"
+                        "OpenJDK 17 ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam. Relatório: "
                                 + report));
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
