@@ -22,9 +22,16 @@ import java.io.InputStreamReader;
  * This installs only the JVM files; it does not supply Minecraft's LWJGL renderer.
  */
 final class AndroidRuntimeInstaller {
-    static final String SOURCE_URL =
-            "https://github.com/PojavLauncherTeam/android-openjdk-build-multiarch/releases/download/"
-                    + "jre17-ec28559/jre17-arm64-20210825-release.tar.xz";
+    private static String sourceUrl(int major) {
+        String base = "https://github.com/PojavLauncherTeam/android-openjdk-build-multiarch/releases/download/";
+        if (major == 8) {
+            return base + "jre8-40df388/jre8-arm64-20220811-release.tar.xz";
+        }
+        if (major == 17) {
+            return base + "jre17-ca01427/jre17-arm64-20220817-release.tar.xz";
+        }
+        throw new IllegalArgumentException("Somente Java 8 e Java 17 são suportados.");
+    }
     private static final long MAX_ARCHIVE_BYTES = 100L * 1024L * 1024L;
     private static final long MAX_UNPACKED_BYTES = 700L * 1024L * 1024L;
     private static final int MAX_ENTRIES = 50000;
@@ -35,23 +42,27 @@ final class AndroidRuntimeInstaller {
 
     private AndroidRuntimeInstaller() { }
 
-    static void install(File runtimeDirectory, Progress progress) throws Exception {
+    static void install(File runtimeDirectory, int major, Progress progress) throws Exception {
+        if (major != 8 && major != 17) {
+            throw new IllegalArgumentException("Escolha Java 8 ou Java 17.");
+        }
         if (!runtimeDirectory.exists() && !runtimeDirectory.mkdirs()) {
             throw new IllegalStateException("Não foi possível criar a pasta runtime.");
         }
-        File archive = new File(runtimeDirectory, "jre17-arm64.tar.xz.part");
-        File staged = new File(runtimeDirectory, "staging-jre17");
-        File active = new File(runtimeDirectory, "active");
-        File backup = new File(runtimeDirectory, "active-old");
+        String label = "jre" + major;
+        File archive = new File(runtimeDirectory, label + "-arm64.tar.xz.part");
+        File staged = new File(runtimeDirectory, "staging-" + label);
+        File active = new File(runtimeDirectory, "java" + major);
+        File backup = new File(runtimeDirectory, "java" + major + "-old");
 
         deleteTree(staged);
         deleteTree(archive);
-        download(archive, progress);
-        extract(archive, staged, progress);
-        if (!hasCompatibleRuntime(staged)) {
+        download(archive, major, progress);
+        extract(archive, staged, major, progress);
+        if (!hasCompatibleRuntime(staged, major)) {
             deleteTree(staged);
             deleteTree(archive);
-            throw new IllegalStateException("O arquivo baixado não contém um OpenJDK 17 ARM64 válido.");
+            throw new IllegalStateException("O arquivo baixado não contém um OpenJDK " + major + " ARM64 válido.");
         }
 
         deleteTree(backup);
@@ -66,11 +77,11 @@ final class AndroidRuntimeInstaller {
         }
         deleteTree(backup);
         deleteTree(archive);
-        progress.update("Runtime Java 17 instalado e validado", 1, 1);
+        progress.update("Runtime Java " + major + " instalado e validado", 1, 1);
     }
 
-    private static void download(File destination, Progress progress) throws Exception {
-        URL current = new URL(SOURCE_URL);
+    private static void download(File destination, int major, Progress progress) throws Exception {
+        URL current = new URL(sourceUrl(major));
         HttpURLConnection connection = null;
         try {
             for (int redirects = 0; redirects <= 5; redirects++) {
@@ -86,7 +97,7 @@ final class AndroidRuntimeInstaller {
                 connection.setConnectTimeout(20000);
                 connection.setReadTimeout(30000);
                 connection.setInstanceFollowRedirects(false);
-                connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.3");
+                connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.4");
                 int code = connection.getResponseCode();
                 if (code >= 300 && code < 400) {
                     String location = connection.getHeaderField("Location");
@@ -116,7 +127,7 @@ final class AndroidRuntimeInstaller {
                             throw new IllegalStateException("Download excedeu 100 MiB.");
                         }
                         output.write(buffer, 0, count);
-                        progress.update("Baixando OpenJDK 17 ARM64", received, total);
+                        progress.update("Baixando OpenJDK " + major + " ARM64", received, total);
                     }
                     output.getFD().sync();
                 }
@@ -131,7 +142,7 @@ final class AndroidRuntimeInstaller {
         }
     }
 
-    private static void extract(File archive, File destination, Progress progress) throws Exception {
+    private static void extract(File archive, File destination, int major, Progress progress) throws Exception {
         if (!destination.mkdirs() && !destination.isDirectory()) {
             throw new IllegalStateException("Não foi possível criar a pasta temporária.");
         }
@@ -209,17 +220,17 @@ final class AndroidRuntimeInstaller {
                 if (entry.getMode() != 0) {
                     output.setExecutable((entry.getMode() & 0111) != 0, false);
                 }
-                if ((entries & 127) == 0) progress.update("Extraindo OpenJDK 17", entries, MAX_ENTRIES);
+                if ((entries & 127) == 0) progress.update("Extraindo OpenJDK " + major, entries, MAX_ENTRIES);
             }
         }
-        progress.update("Validando OpenJDK 17", expanded, MAX_UNPACKED_BYTES);
+        progress.update("Validando OpenJDK " + major, expanded, MAX_UNPACKED_BYTES);
     }
 
-    private static boolean hasCompatibleRuntime(File root) {
-        return findFile(root, "libjvm.so") && hasJava17Release(root);
+    private static boolean hasCompatibleRuntime(File root, int expectedMajor) {
+        return findFile(root, "libjvm.so") && hasJavaMajorRelease(root, expectedMajor);
     }
 
-    private static boolean hasJava17Release(File root) {
+    private static boolean hasJavaMajorRelease(File root, int expectedMajor) {
         File release = findFileObject(root, "release");
         if (release == null) return false;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -228,7 +239,10 @@ final class AndroidRuntimeInstaller {
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("JAVA_VERSION=")) {
                     String value = line.substring("JAVA_VERSION=".length()).replace("\"", "").trim();
-                    return value.startsWith("17.");
+                    java.util.regex.Matcher matcher = java.util.regex.Pattern
+                            .compile("^(?:1\\.)?(\\d+)")
+                            .matcher(value);
+                    return matcher.find() && Integer.parseInt(matcher.group(1)) == expectedMajor;
                 }
             }
         } catch (Exception ignored) { }
