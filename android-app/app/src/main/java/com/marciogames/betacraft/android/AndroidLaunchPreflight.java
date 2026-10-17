@@ -25,7 +25,7 @@ final class AndroidLaunchPreflight {
         boolean jarReady = checkJar(dataRoot, version, lines);
         boolean metadataReady = checkMetadata(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
-        int requiredJava = requiredJavaMajor(version);
+        int requiredJava = recommendedJavaMajor(version);
         lines.add("Runtime recomendado para " + version + ": Java " + requiredJava);
         File runtimeRoot = new File(dataRoot, "runtime/java" + requiredJava);
         boolean jvmReady = containsNamedFile(runtimeRoot, "libjvm.so");
@@ -113,7 +113,7 @@ final class AndroidLaunchPreflight {
         return arm;
     }
 
-    private static int requiredJavaMajor(String version) {
+    static int recommendedJavaMajor(String version) {
         // Legacy BetaCraft versions generally use Java 8; Minecraft 1.17+ requires Java 16+
         // and Java 17 is the practical baseline for those versions.
         String value = version == null ? "" : version.trim();
