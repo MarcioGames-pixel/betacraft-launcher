@@ -30,7 +30,7 @@ final class AndroidRuntimeInstaller {
         if (major == 17) {
             return base + "jre17-ca01427/jre17-arm64-20220817-release.tar.xz";
         }
-        throw new IllegalArgumentException("Somente Java 8 e Java 17 são suportados.");
+        throw new IllegalArgumentException("Only Java 8 and Java 17 are supported.");
     }
     private static final long MAX_ARCHIVE_BYTES = 100L * 1024L * 1024L;
     private static final long MAX_UNPACKED_BYTES = 700L * 1024L * 1024L;
@@ -44,7 +44,7 @@ final class AndroidRuntimeInstaller {
 
     static void install(File runtimeDirectory, int major, Progress progress) throws Exception {
         if (major != 8 && major != 17) {
-            throw new IllegalArgumentException("Escolha Java 8 ou Java 17.");
+            throw new IllegalArgumentException("Choose Java 8 or Java 17.");
         }
         if (!runtimeDirectory.exists() && !runtimeDirectory.mkdirs()) {
             throw new IllegalStateException("Não foi possível criar a pasta runtime.");
@@ -62,7 +62,7 @@ final class AndroidRuntimeInstaller {
         if (!hasCompatibleRuntime(staged, major)) {
             deleteTree(staged);
             deleteTree(archive);
-            throw new IllegalStateException("O arquivo baixado não contém um OpenJDK " + major + " ARM64 válido.");
+            throw new IllegalStateException("The downloaded Java " + major + " package is incomplete or is not a 64-bit ARM (AArch64) Android runtime. Expected libjvm.so and libjli.so.");
         }
 
         deleteTree(backup);
@@ -112,7 +112,7 @@ final class AndroidRuntimeInstaller {
                 if (code < 200 || code >= 300) {
                     throw new IllegalStateException("Download do runtime respondeu HTTP " + code);
                 }
-                long total = connection.getContentLengthLong();
+                long total = connection.getContentLength();
                 if (total > MAX_ARCHIVE_BYTES) {
                     throw new IllegalStateException("Arquivo do runtime excede o limite de tamanho.");
                 }
@@ -226,8 +226,31 @@ final class AndroidRuntimeInstaller {
         progress.update("Validando OpenJDK " + major, expanded, MAX_UNPACKED_BYTES);
     }
 
-    private static boolean hasCompatibleRuntime(File root, int expectedMajor) {
-        return findFile(root, "libjvm.so") && hasJavaMajorRelease(root, expectedMajor);
+    static boolean hasCompatibleRuntime(File root, int expectedMajor) {
+        File jvm = findFileObject(root, "libjvm.so");
+        File jli = findFileObject(root, "libjli.so");
+        return jvm != null && jli != null && isArm64Elf(jvm)
+                && hasJavaMajorRelease(root, expectedMajor);
+    }
+
+    static boolean isArm64Elf(File file) {
+        if (file == null || !file.isFile()) return false;
+        try (InputStream input = new FileInputStream(file)) {
+            byte[] header = new byte[20];
+            int offset = 0;
+            while (offset < header.length) {
+                int count = input.read(header, offset, header.length - offset);
+                if (count < 0) return false;
+                offset += count;
+            }
+            // ELF64, little-endian, e_machine = EM_AARCH64 (183).
+            return (header[0] & 0xff) == 0x7f && header[1] == 'E'
+                    && header[2] == 'L' && header[3] == 'F'
+                    && (header[4] & 0xff) == 2 && (header[5] & 0xff) == 1
+                    && (header[18] & 0xff) == 183 && (header[19] & 0xff) == 0;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static boolean hasJavaMajorRelease(File root, int expectedMajor) {
