@@ -24,6 +24,7 @@ final class AndroidLaunchPreflight {
         List<String> lines = new ArrayList<>();
         boolean jarReady = checkJar(dataRoot, version, lines);
         boolean metadataReady = checkMetadata(dataRoot, version, lines);
+        boolean launchMethodReady = checkLaunchMethod(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
         int requiredJava = recommendedJavaMajor(version);
         lines.add("Runtime recomendado para " + version + ": Java " + requiredJava);
@@ -40,7 +41,7 @@ final class AndroidLaunchPreflight {
         lines.add((rendererReady ? "OK" : "FALTA")
                 + " — ponte de renderização/input (libbetacraft_renderer.so)");
 
-        boolean ready = jarReady && metadataReady && abiReady && jvmReady
+        boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady
                 && runtimeVersionReady && launchBridgeReady && rendererReady;
         lines.add("");
         lines.add(ready
@@ -95,6 +96,47 @@ final class AndroidLaunchPreflight {
         }
         lines.add("OK — launch-method declarado: " + launchMethod);
         return true;
+    }
+
+    private static boolean checkLaunchMethod(File dataRoot, String version, List<String> lines) {
+        File info = new File(new File(new File(dataRoot, "versions"), "jsons"), version + ".info");
+        String methodName = null;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(info), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int separator = line.indexOf(':');
+                if (separator > 0 && "launch-method".equals(line.substring(0, separator).trim())) {
+                    methodName = line.substring(separator + 1).trim();
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            lines.add("FALTA — não foi possível ler launch-method");
+            return false;
+        }
+        if (methodName == null || methodName.isEmpty()) {
+            lines.add("AVISO — versão sem launch-method declarado; pode exigir detecção especial");
+            return false;
+        }
+        if (!methodName.matches("[A-Za-z0-9._-]{1,100}") || ".".equals(methodName)
+                || "..".equals(methodName)) {
+            lines.add("INVÁLIDO — nome de launch-method inseguro");
+            return false;
+        }
+        File jar = new File(new File(new File(dataRoot, "launcher"), "launch-methods"),
+                methodName + ".jar");
+        boolean ready = jar.isFile() && jar.length() > 0;
+        if (ready) {
+            try (JarFile archive = new JarFile(jar)) {
+                ready = archive.size() > 0;
+            } catch (Exception e) {
+                ready = false;
+            }
+        }
+        lines.add((ready ? "OK" : "FALTA") + " — JAR do método de lançamento "
+                + methodName + (ready ? "" : " (use Preparar método de lançamento)"));
+        return ready;
     }
 
     private static boolean checkAbi(String[] supportedAbis, List<String> lines) {
