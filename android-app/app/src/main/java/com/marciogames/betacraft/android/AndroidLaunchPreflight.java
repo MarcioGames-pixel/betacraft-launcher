@@ -26,8 +26,8 @@ final class AndroidLaunchPreflight {
         boolean metadataReady = checkMetadata(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
         int requiredJava = requiredJavaMajor(version);
-        lines.add("Runtime Java recomendado para " + version + ": Java " + requiredJava);
-        File runtimeRoot = new File(dataRoot, "runtime/active");
+        lines.add("Runtime recomendado para " + version + ": Java " + requiredJava);
+        File runtimeRoot = new File(dataRoot, "runtime/java" + requiredJava);
         boolean jvmReady = containsNamedFile(runtimeRoot, "libjvm.so");
         boolean runtimeVersionReady = runtimeHasMajor(runtimeRoot, requiredJava);
         lines.add((jvmReady && runtimeVersionReady ? "OK" : "FALTA")
