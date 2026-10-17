@@ -22,7 +22,7 @@ final class AndroidJvmBridge {
             throw new IllegalStateException("libjli.so was not found in the installed Java runtime.");
         }
         return runNative(javaHome.getCanonicalPath(), jli.getCanonicalPath(),
-                new String[]{"-version"});
+                new String[]{"java", "-version"});
     }
 
     private static File findNamedFile(File root, String name, int depth) {
