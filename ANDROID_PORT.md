@@ -17,6 +17,7 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Downloads to temporary files, rejects empty JARs, verifies SHA-1 when metadata supplies it, and then moves the result into the versions directory.
 - Uses HTTPS only; known BetaCraft HTTP links are upgraded to HTTPS. Other HTTP links and insecure redirects are rejected.
 - Stores files in the app-private directory shown in the UI.
+- Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, and checks for the expected JVM and native bridge components.
 
 ## Important limitations
 
@@ -25,8 +26,8 @@ This is **not yet a working Minecraft launcher**. The Play button still reports 
 Remaining work:
 1. Validate metadata formats and test downloads against the live catalogue.
 2. Add version/profile and instance management.
-3. Integrate an Android-compatible Java runtime and launch pipeline instead of desktop `ProcessBuilder` assumptions.
-4. Integrate a compatible rendering/input layer for legacy Minecraft versions and test each version separately.
+3. Package and integrate an Android-compatible OpenJDK runtime and native launch bridge; the preflight currently reports these as missing rather than trying to run a desktop JAR directly.
+4. Implement a compatible rendering/input bridge for legacy Minecraft versions and test each version separately.
 5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
 6. Build the APK in Actions and fix any CI errors; then test on real Android devices.
 
