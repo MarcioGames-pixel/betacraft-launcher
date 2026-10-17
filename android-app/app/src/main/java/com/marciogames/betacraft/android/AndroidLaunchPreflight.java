@@ -27,7 +27,7 @@ final class AndroidLaunchPreflight {
         boolean launchMethodReady = checkLaunchMethod(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
         int requiredJava = recommendedJavaMajor(version);
-        lines.add("Runtime recomendado para " + version + ": Java " + requiredJava);
+        lines.add("Recommended runtime for " + version + ": Java " + requiredJava);
         File runtimeRoot = new File(dataRoot, "runtime/java" + requiredJava);
         File jvmLibrary = findNamedFile(runtimeRoot, "libjvm.so");
         boolean jvmReady = jvmLibrary != null && AndroidRuntimeInstaller.isArm64Elf(jvmLibrary);
@@ -90,14 +90,14 @@ final class AndroidLaunchPreflight {
                 }
             }
         } catch (Exception e) {
-            lines.add("ERRO — leitura dos metadados: " + e.getClass().getSimpleName());
+            lines.add("ERROR — could not read metadata: " + e.getClass().getSimpleName());
             return false;
         }
         if (launchMethod == null || launchMethod.isEmpty()) {
             lines.add("NOTICE — metadata has no launch-method; automatic detection is still needed");
             return true;
         }
-        lines.add("OK — launch-method declarado: " + launchMethod);
+        lines.add("OK — declared launch-method: " + launchMethod);
         return true;
     }
 
