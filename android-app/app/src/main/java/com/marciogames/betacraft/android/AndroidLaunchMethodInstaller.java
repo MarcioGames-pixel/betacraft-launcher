@@ -94,7 +94,7 @@ final class AndroidLaunchMethodInstaller {
                 while ((count = input.read(buffer)) != -1) {
                     countBytes += count;
                     if (countBytes > MAX_JAR_BYTES) {
-                        throw new IllegalStateException("Download excedeu o limite de 100 MiB.");
+                        throw new IllegalStateException("Download exceeded the 100 MiB limit.");
                     }
                     digest.update(buffer, 0, count);
                     output.write(buffer, 0, count);
@@ -151,14 +151,14 @@ final class AndroidLaunchMethodInstaller {
         try {
             connection = openConnection(address);
             long length = connection.getContentLengthLong();
-            if (length > maxBytes) throw new IllegalStateException("Descritor excede o limite permitido.");
+            if (length > maxBytes) throw new IllegalStateException("Descriptor exceeds the allowed size.");
             try (InputStream input = new BufferedInputStream(connection.getInputStream())) {
                 byte[] buffer = new byte[8192];
                 java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
                 int n;
                 while ((n = input.read(buffer)) != -1) {
                     if (output.size() + n > maxBytes) {
-                        throw new IllegalStateException("Resposta excedeu o limite permitido.");
+                        throw new IllegalStateException("Response exceeds the allowed size.");
                     }
                     output.write(buffer, 0, n);
                 }
@@ -189,7 +189,7 @@ final class AndroidLaunchMethodInstaller {
             }
             current = new URL(current, location);
         }
-        throw new IllegalStateException("Redirecionamentos demais.");
+        throw new IllegalStateException("Too many redirects.");
     }
 
     private static String normalizeUrl(String value) throws Exception {
@@ -215,13 +215,13 @@ final class AndroidLaunchMethodInstaller {
     }
 
     private static String readUtf8(File file, long maxBytes) throws Exception {
-        if (file.length() > maxBytes) throw new IllegalStateException("Metadados excedem o limite permitido.");
+        if (file.length() > maxBytes) throw new IllegalStateException("Metadata exceeds the allowed size.");
         try (InputStream input = new FileInputStream(file)) {
             java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
             byte[] buffer = new byte[8192];
             int n;
             while ((n = input.read(buffer)) != -1) {
-                if (output.size() + n > maxBytes) throw new IllegalStateException("Metadados muito grandes.");
+                if (output.size() + n > maxBytes) throw new IllegalStateException("Metadata is too large.");
                 output.write(buffer, 0, n);
             }
             return new String(output.toByteArray(), StandardCharsets.UTF_8);
