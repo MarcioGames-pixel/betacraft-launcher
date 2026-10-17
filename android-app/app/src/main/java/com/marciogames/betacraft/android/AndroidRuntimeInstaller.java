@@ -18,7 +18,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 /**
- * Installs the published Android ARM64 OpenJDK 17 runtime into app-private storage.
+ * Installs published Android ARM64 OpenJDK 8 or 17 runtimes into app-private storage.
  * This installs only the JVM files; it does not supply Minecraft's LWJGL renderer.
  */
 final class AndroidRuntimeInstaller {
