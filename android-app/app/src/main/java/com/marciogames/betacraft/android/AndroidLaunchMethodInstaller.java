@@ -1,8 +1,5 @@
 package com.marciogames.betacraft.android;
 
-import android.util.JsonReader;
-import android.util.JsonToken;
-import android.util.JsonWriter;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
@@ -78,7 +75,7 @@ final class AndroidLaunchMethodInstaller {
         HttpURLConnection connection = null;
         try {
             connection = openConnection(normalizeUrl(jarUrl));
-            long length = connection.getContentLengthLong();
+            long length = connection.getContentLength();
             if (length > MAX_JAR_BYTES) throw new IllegalStateException("JAR do método excede 100 MiB.");
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
             long countBytes = 0;
