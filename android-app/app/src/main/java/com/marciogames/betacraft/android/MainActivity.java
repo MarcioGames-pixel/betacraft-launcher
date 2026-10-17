@@ -351,7 +351,7 @@ public final class MainActivity extends Activity {
             if (response < 200 || response >= 300) {
                 throw new IllegalStateException("Servidor respondeu HTTP " + response);
             }
-            long total = connection.getContentLengthLong();
+            final long total = connection.getContentLength();
             runOnUiThread(() -> {
                 progressBar.setIndeterminate(total <= 0);
                 progressBar.setProgress(0);
@@ -367,16 +367,16 @@ public final class MainActivity extends Activity {
                     output.write(buffer, 0, count);
                     digest.update(buffer, 0, count);
                     downloaded += count;
+                    final long current = downloaded;
                     if (total > 0) {
-                        int percent = (int) Math.min(100, downloaded * 100L / total);
+                        final int percent = (int) Math.min(100, current * 100L / total);
                         runOnUiThread(() -> {
                             progressBar.setIndeterminate(false);
                             progressBar.setProgress(percent);
                             status.setText("Baixando… " + percent + "% ("
-                                    + humanSize(downloaded) + " / " + humanSize(total) + ")");
+                                    + humanSize(current) + " / " + humanSize(total) + ")");
                         });
                     } else {
-                        final long current = downloaded;
                         runOnUiThread(() -> status.setText("Baixando… " + humanSize(current)));
                     }
                 }
