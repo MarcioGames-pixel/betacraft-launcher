@@ -483,7 +483,7 @@ public final class MainActivity extends Activity {
                                 + report));
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
-                        "Falha ao instalar OpenJDK " + javaMajor + ": " + safeMessage(e)));
+                        "Could not install OpenJDK " + javaMajor + ": " + safeMessage(e)));
             }
         });
     }
