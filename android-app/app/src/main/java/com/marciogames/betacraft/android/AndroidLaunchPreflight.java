@@ -31,7 +31,8 @@ final class AndroidLaunchPreflight {
         File runtimeRoot = new File(dataRoot, "runtime/java" + requiredJava);
         File jvmLibrary = findNamedFile(runtimeRoot, "libjvm.so");
         boolean jvmReady = jvmLibrary != null && AndroidRuntimeInstaller.isArm64Elf(jvmLibrary);
-        boolean jliReady = findNamedFile(runtimeRoot, "libjli.so") != null;
+        File jliLibrary = findNamedFile(runtimeRoot, "libjli.so");
+        boolean jliReady = jliLibrary != null && AndroidRuntimeInstaller.isArm64Elf(jliLibrary);
         boolean runtimeVersionReady = runtimeHasMajor(runtimeRoot, requiredJava);
         lines.add((jvmReady && jliReady && runtimeVersionReady ? "OK" : "MISSING")
                 + " — Java " + requiredJava + " Android ARM64 runtime"
@@ -94,7 +95,7 @@ final class AndroidLaunchPreflight {
             return false;
         }
         if (launchMethod == null || launchMethod.isEmpty()) {
-            lines.add("NOTICE — metadata has no launch-method; automatic detection is still needed");
+            lines.add("NOTICE — metadata has no launch-method; automatic JAR detection will be attempted");
             return true;
         }
         lines.add("OK — declared launch-method: " + launchMethod);
@@ -169,7 +170,7 @@ final class AndroidLaunchPreflight {
             value.append(abi);
             if ("arm64-v8a".equals(abi) || "armeabi-v7a".equals(abi)) arm = true;
         }
-        lines.add((arm ? "OK" : "NOTICE") + " — ABI do dispositivo: " + value);
+        lines.add((arm ? "OK" : "NOTICE") + " — device ABI: " + value);
         return arm;
     }
 
