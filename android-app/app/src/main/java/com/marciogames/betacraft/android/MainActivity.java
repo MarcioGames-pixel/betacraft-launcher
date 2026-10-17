@@ -491,7 +491,7 @@ public final class MainActivity extends Activity {
     private String downloadInfo(String version, File destination) throws Exception {
         String encoded = URLEncoder.encode(version, "UTF-8").replace("+", "%20");
         String url = INFO_BASE_URL + encoded + ".info";
-        runOnUiThread(() -> status.setText("Baixando metadados de " + version + "…"));
+        runOnUiThread(() -> status.setText("Downloading metadata for " + version + "…"));
         HttpURLConnection connection = null;
         try {
             connection = openConnection(url);
@@ -536,7 +536,7 @@ public final class MainActivity extends Activity {
             connection = openConnection(sourceUrl);
             int response = connection.getResponseCode();
             if (response < 200 || response >= 300) {
-                throw new IllegalStateException("Servidor respondeu HTTP " + response);
+                throw new IllegalStateException("Server returned HTTP " + response);
             }
             final long total = connection.getContentLength();
             runOnUiThread(() -> {
@@ -564,13 +564,13 @@ public final class MainActivity extends Activity {
                                     + humanSize(current) + " / " + humanSize(total) + ")");
                         });
                     } else {
-                        runOnUiThread(() -> status.setText("Baixando… " + humanSize(current)));
+                        runOnUiThread(() -> status.setText("Downloading… " + humanSize(current)));
                     }
                 }
                 output.getFD().sync();
             }
 
-            if (temporary.length() == 0) throw new IllegalStateException("O servidor enviou um arquivo vazio.");
+            if (temporary.length() == 0) throw new IllegalStateException("The server returned an empty file.");
             if (expectedSha1 != null && !expectedSha1.trim().isEmpty()) {
                 String actual = toHex(digest.digest());
                 if (!actual.equalsIgnoreCase(expectedSha1.trim())) {
@@ -620,12 +620,12 @@ public final class MainActivity extends Activity {
                 String location = connection.getHeaderField("Location");
                 connection.disconnect();
                 if (location == null || location.trim().isEmpty() || redirects == 5) {
-                    throw new IllegalStateException("Redirecionamento ausente ou excessivo.");
+                    throw new IllegalStateException("Missing or excessive redirect chain.");
                 }
                 URL redirected = new URL(current, location);
                 if (!"https".equalsIgnoreCase(redirected.getProtocol())
                         || redirected.getUserInfo() != null) {
-                    throw new IllegalStateException("Redirecionamento inseguro recusado.");
+                    throw new IllegalStateException("Rejected insecure redirect.");
                 }
                 current = redirected;
                 continue;
@@ -634,7 +634,7 @@ public final class MainActivity extends Activity {
             throw new IllegalStateException("Servidor respondeu HTTP " + code + " em "
                     + current.getHost());
         }
-        throw new IllegalStateException("Muitos redirecionamentos HTTPS.");
+        throw new IllegalStateException("Too many HTTPS redirects.");
     }
 
     private String normalizeDownloadUrl(String value) throws Exception {
