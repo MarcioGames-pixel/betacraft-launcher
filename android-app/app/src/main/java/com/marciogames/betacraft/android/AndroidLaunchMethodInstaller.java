@@ -30,53 +30,53 @@ final class AndroidLaunchMethodInstaller {
     static String install(File dataRoot, String version, Progress progress) throws Exception {
         File infoFile = new File(new File(new File(dataRoot, "versions"), "jsons"), version + ".info");
         if (!infoFile.isFile() || infoFile.length() == 0) {
-            throw new IllegalStateException("Baixe primeiro os metadados .info da versão.");
+            throw new IllegalStateException("Download the version .info metadata first.");
         }
         String infoText = readUtf8(infoFile, MAX_INFO_BYTES);
         String methodName = property(infoText, "launch-method");
         String descriptorUrl = property(infoText, "launch-method-link");
         if (methodName == null || methodName.trim().isEmpty()) {
-            throw new IllegalStateException("Esta versão não declara launch-method.");
+            throw new IllegalStateException("This version does not declare a launch-method.");
         }
         if (descriptorUrl == null || descriptorUrl.trim().isEmpty()) {
-            throw new IllegalStateException("Os metadados não declaram launch-method-link.");
+            throw new IllegalStateException("The metadata does not declare launch-method-link.");
         }
         methodName = methodName.trim();
         if (!methodName.matches("[A-Za-z0-9._-]{1,100}") || ".".equals(methodName)
                 || "..".equals(methodName)) {
-            throw new IllegalStateException("Nome de launch-method inválido.");
+            throw new IllegalStateException("Invalid launch-method name.");
         }
 
-        if (progress != null) progress.update("Lendo descritor do método " + methodName + "…");
+        if (progress != null) progress.update("Reading launch-method descriptor " + methodName + "…");
         String descriptor = readUrl(normalizeUrl(descriptorUrl.trim()), MAX_INFO_BYTES);
         JSONObject json = new JSONObject(descriptor);
         String jarUrl = json.optString("url", "").trim();
         String expectedHash = json.optString("hash", "").trim();
         if (jarUrl.isEmpty() || expectedHash.isEmpty()) {
-            throw new IllegalStateException("Descritor do método não contém url e hash.");
+            throw new IllegalStateException("The launch-method descriptor is missing url or hash.");
         }
         if (!expectedHash.matches("(?i)[0-9a-f]{40}")) {
-            throw new IllegalStateException("Hash SHA-1 do método está ausente ou inválido.");
+            throw new IllegalStateException("The launch-method SHA-1 hash is missing or invalid.");
         }
 
         File methodsDir = new File(new File(dataRoot, "launcher"), "launch-methods");
         if (!methodsDir.isDirectory() && !methodsDir.mkdirs()) {
-            throw new IllegalStateException("Não foi possível criar a pasta launch-methods.");
+            throw new IllegalStateException("Could not create the launch-methods directory.");
         }
         File destination = new File(methodsDir, methodName + ".jar");
         if (isValidJar(destination, expectedHash)) {
-            return "Método " + methodName + " já instalado e validado.\n"
+            return "Method " + methodName + " is already installed and validated.\n"
                     + destination.getAbsolutePath()
-                    + "\nAviso: o método pode depender de APIs desktop e ainda não executar no Android.";
+                    + "\nNote: this method may depend on desktop APIs and may not run on Android.";
         }
 
         File temporary = new File(methodsDir, methodName + ".jar.part");
-        if (progress != null) progress.update("Baixando método de lançamento " + methodName + "…");
+        if (progress != null) progress.update("Downloading launch method " + methodName + "…");
         HttpURLConnection connection = null;
         try {
             connection = openConnection(normalizeUrl(jarUrl));
             long length = connection.getContentLength();
-            if (length > MAX_JAR_BYTES) throw new IllegalStateException("JAR do método excede 100 MiB.");
+            if (length > MAX_JAR_BYTES) throw new IllegalStateException("Launch-method JAR exceeds 100 MiB.");
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
             long countBytes = 0;
             byte[] buffer = new byte[32 * 1024];
@@ -95,21 +95,21 @@ final class AndroidLaunchMethodInstaller {
             }
             String actual = hex(digest.digest());
             if (!actual.equalsIgnoreCase(expectedHash)) {
-                throw new IllegalStateException("SHA-1 do método não confere; download descartado.");
+                throw new IllegalStateException("Launch-method SHA-1 mismatch; download discarded.");
             }
             if (!isValidJar(temporary, expectedHash)) {
-                throw new IllegalStateException("O arquivo baixado não é um JAR válido.");
+                throw new IllegalStateException("The downloaded file is not a valid JAR.");
             }
             if (destination.exists() && !destination.delete()) {
-                throw new IllegalStateException("Não foi possível substituir o método antigo.");
+                throw new IllegalStateException("Could not replace the previous launch method.");
             }
             if (!temporary.renameTo(destination)) {
                 copy(temporary, destination);
                 if (!temporary.delete()) temporary.deleteOnExit();
             }
-            return "Método " + methodName + " baixado, validado e preparado.\n"
+            return "Method " + methodName + " downloaded, validated and prepared.\n"
                     + destination.getAbsolutePath()
-                    + "\nAviso: isso não confirma compatibilidade Android nem inicia o jogo.";
+                    + "\nNote: this does not confirm Android compatibility or launch the game.";
         } catch (Exception e) {
             if (temporary.exists()) temporary.delete();
             throw e;
@@ -165,7 +165,7 @@ final class AndroidLaunchMethodInstaller {
         URL current = new URL(address);
         for (int redirects = 0; redirects <= 5; redirects++) {
             if (!"https".equalsIgnoreCase(current.getProtocol()) || current.getUserInfo() != null) {
-                throw new IllegalStateException("Somente HTTPS é permitido para métodos de lançamento.");
+                throw new IllegalStateException("HTTPS is required for launch methods.");
             }
             HttpURLConnection connection = (HttpURLConnection) current.openConnection();
             connection.setConnectTimeout(15000);
@@ -177,7 +177,7 @@ final class AndroidLaunchMethodInstaller {
             String location = connection.getHeaderField("Location");
             connection.disconnect();
             if (code < 300 || code >= 400 || location == null || redirects == 5) {
-                throw new IllegalStateException("Falha HTTP ao obter método de lançamento: " + code);
+                throw new IllegalStateException("HTTP error while downloading launch method: " + code);
             }
             current = new URL(current, location);
         }
@@ -193,7 +193,7 @@ final class AndroidLaunchMethodInstaller {
                 || host.endsWith(".betacraft.uk"))) {
             return new URL("https", url.getHost(), url.getPort(), url.getFile()).toString();
         }
-        throw new IllegalStateException("URL insegura ou host não confiável no descritor.");
+        throw new IllegalStateException("Unsafe URL or untrusted host in the descriptor.");
     }
 
     private static String property(String content, String key) {
