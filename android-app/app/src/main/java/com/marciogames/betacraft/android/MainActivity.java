@@ -52,6 +52,7 @@ public final class MainActivity extends Activity {
     private Button downloadButton;
     private Button runtimeCheckButton;
     private Button runtimeInstallButton;
+    private Button runtimeInstallJava8Button;
     private ProgressBar progressBar;
     private File dataRoot;
     private volatile boolean activityAlive = true;
@@ -141,7 +142,14 @@ public final class MainActivity extends Activity {
         LinearLayout.LayoutParams runtimeInstallParams = matchWrap();
         runtimeInstallParams.topMargin = dp(8);
         root.addView(runtimeInstallButton, runtimeInstallParams);
-        runtimeInstallButton.setOnClickListener(v -> installRuntime());
+        runtimeInstallButton.setOnClickListener(v -> installRuntime(17));
+
+        runtimeInstallJava8Button = new Button(this);
+        runtimeInstallJava8Button.setText("Instalar runtime Java 8 (ARM64)");
+        LinearLayout.LayoutParams runtime8Params = matchWrap();
+        runtime8Params.topMargin = dp(8);
+        root.addView(runtimeInstallJava8Button, runtime8Params);
+        runtimeInstallJava8Button.setOnClickListener(v -> installRuntime(8));
 
         runtimeCheckButton = new Button(this);
         runtimeCheckButton.setText("Verificar requisitos para executar");
@@ -186,7 +194,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("O instalador baixa o OpenJDK 17 ARM64 publicado pelo projeto PojavLauncher. Isso instala a JVM, mas não inclui o renderizador/input necessário e ainda não inicia o Minecraft. Para versões antigas, Java 8 pode ser necessário.");
+        note.setText("O instalador oferece OpenJDK 8 e 17 ARM64 publicados pelo projeto PojavLauncher. Instalar a JVM não inclui a ponte de execução nem o renderizador/input, portanto ainda não inicia o Minecraft. Versões antigas geralmente precisam do Java 8.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -351,7 +359,7 @@ public final class MainActivity extends Activity {
         });
     }
 
-    private void installRuntime() {
+    private void installRuntime(int javaMajor) {
         boolean arm64 = false;
         for (String abi : android.os.Build.SUPPORTED_ABIS) {
             if ("arm64-v8a".equals(abi)) arm64 = true;
@@ -362,10 +370,10 @@ public final class MainActivity extends Activity {
         }
         final String selectedVersion = versionSpinner == null || versionSpinner.getSelectedItem() == null
                 ? "" : String.valueOf(versionSpinner.getSelectedItem());
-        setBusy(true, "Preparando instalação do OpenJDK 17 ARM64…");
+        setBusy(true, "Preparando instalação do OpenJDK " + javaMajor + " ARM64…");
         io.execute(() -> {
             try {
-                AndroidRuntimeInstaller.install(new File(dataRoot, "runtime"),
+                AndroidRuntimeInstaller.install(new File(dataRoot, "runtime"), javaMajor,
                         (stage, current, total) -> runOnUiThread(() -> {
                             if (total > 0 && total < 50000) {
                                 int percent = (int) Math.min(100, current * 100L / total);
@@ -382,11 +390,11 @@ public final class MainActivity extends Activity {
                         android.os.Build.SUPPORTED_ABIS,
                         new File(getApplicationInfo().nativeLibraryDir));
                 runOnUiThread(() -> setBusy(false,
-                        "OpenJDK 17 ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam. Relatório: "
+                        "OpenJDK " + javaMajor + " ARM64 instalado e validado. A ponte nativa e o renderizador ainda faltam. Relatório: "
                                 + report));
             } catch (Exception e) {
                 runOnUiThread(() -> setBusy(false,
-                        "Falha ao instalar OpenJDK 17: " + safeMessage(e)));
+                        "Falha ao instalar OpenJDK " + javaMajor + ": " + safeMessage(e)));
             }
         });
     }
@@ -640,6 +648,7 @@ public final class MainActivity extends Activity {
         if (downloadButton != null) downloadButton.setEnabled(!busy);
         if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
         if (runtimeInstallButton != null) runtimeInstallButton.setEnabled(!busy);
+        if (runtimeInstallJava8Button != null) runtimeInstallJava8Button.setEnabled(!busy);
         if (progressBar != null) {
             progressBar.setVisibility(busy ? android.view.View.VISIBLE : android.view.View.GONE);
             progressBar.setIndeterminate(true);
