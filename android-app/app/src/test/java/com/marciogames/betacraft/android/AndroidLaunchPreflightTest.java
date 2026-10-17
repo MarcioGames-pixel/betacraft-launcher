@@ -4,6 +4,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -23,6 +25,23 @@ public class AndroidLaunchPreflightTest {
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("Beta 1.7.3"));
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("b1.7.3"));
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor("Indev"));
+    }
+
+    @Test
+    public void detectsBuiltInLegacyLaunchMethodsWithoutLoadingClasses() throws Exception {
+        File jar = File.createTempFile("betacraft-version", ".jar");
+        try {
+            try (JarOutputStream output = new JarOutputStream(new FileOutputStream(jar))) {
+                output.putNextEntry(new JarEntry("net/minecraft/client/MinecraftApplet.class"));
+                output.write(new byte[]{0});
+                output.closeEntry();
+            }
+            assertEquals("indev", AndroidLaunchMethodDetector.detect(jar));
+            assertTrue(AndroidLaunchMethodDetector.isBuiltIn("indev"));
+            assertFalse(AndroidLaunchMethodDetector.isBuiltIn("CustomDesktopMethod"));
+        } finally {
+            jar.delete();
+        }
     }
 
     @Test
