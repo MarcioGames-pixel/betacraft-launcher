@@ -25,8 +25,14 @@ final class AndroidLaunchPreflight {
         boolean jarReady = checkJar(dataRoot, version, lines);
         boolean metadataReady = checkMetadata(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
-        boolean jvmReady = containsNamedFile(new File(dataRoot, "runtime/active"), "libjvm.so");
-        lines.add((jvmReady ? "OK" : "FALTA") + " — runtime Java Android (libjvm.so)");
+        int requiredJava = requiredJavaMajor(version);
+        lines.add("Runtime Java recomendado para " + version + ": Java " + requiredJava);
+        File runtimeRoot = new File(dataRoot, "runtime/active");
+        boolean jvmReady = containsNamedFile(runtimeRoot, "libjvm.so");
+        boolean runtimeVersionReady = runtimeHasMajor(runtimeRoot, requiredJava);
+        lines.add((jvmReady && runtimeVersionReady ? "OK" : "FALTA")
+                + " — runtime Java Android " + requiredJava
+                + (jvmReady && runtimeVersionReady ? "" : " (libjvm.so + release compatível)"));
         boolean launchBridgeReady = new File(nativeLibraryDir, "libbetacraft_runtime.so").isFile();
         lines.add((launchBridgeReady ? "OK" : "FALTA")
                 + " — ponte nativa de execução (libbetacraft_runtime.so)");
@@ -35,7 +41,7 @@ final class AndroidLaunchPreflight {
                 + " — ponte de renderização/input (libbetacraft_renderer.so)");
 
         boolean ready = jarReady && metadataReady && abiReady && jvmReady
-                && launchBridgeReady && rendererReady;
+                && runtimeVersionReady && launchBridgeReady && rendererReady;
         lines.add("");
         lines.add(ready
                 ? "Pré-verificação concluída. Ainda é necessário testar o lançamento real."
@@ -105,6 +111,62 @@ final class AndroidLaunchPreflight {
         }
         lines.add((arm ? "OK" : "AVISO") + " — ABI do dispositivo: " + value);
         return arm;
+    }
+
+    private static int requiredJavaMajor(String version) {
+        // Legacy BetaCraft versions generally use Java 8; Minecraft 1.17+ requires Java 16+
+        // and Java 17 is the practical baseline for those versions.
+        String value = version == null ? "" : version.trim();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("^(?:release[- ]?)?(\\d+)\\.(\\d+)(?:\\.|$)")
+                .matcher(value);
+        if (matcher.find()) {
+            try {
+                int major = Integer.parseInt(matcher.group(1));
+                int minor = Integer.parseInt(matcher.group(2));
+                if (major == 1 && minor >= 17) return 17;
+                if (major >= 2) return 17;
+            } catch (NumberFormatException ignored) { }
+        }
+        return 8;
+    }
+
+    private static boolean runtimeHasMajor(File runtimeRoot, int expectedMajor) {
+        File[] releases = findNamedFiles(runtimeRoot, "release");
+        for (File release : releases) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    new FileInputStream(release), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("JAVA_VERSION=")) continue;
+                    String value = line.substring("JAVA_VERSION=".length())
+                            .replace("\\\"", "").trim();
+                    java.util.regex.Matcher matcher = java.util.regex.Pattern
+                            .compile("^(?:1\\.)?(\\d+)")
+                            .matcher(value);
+                    if (matcher.find() && Integer.parseInt(matcher.group(1)) == expectedMajor) {
+                        return true;
+                    }
+                }
+            } catch (Exception ignored) { }
+        }
+        return false;
+    }
+
+    private static File[] findNamedFiles(File directory, String name) {
+        List<File> matches = new ArrayList<>();
+        collectNamedFiles(directory, name, matches, 0);
+        return matches.toArray(new File[0]);
+    }
+
+    private static void collectNamedFiles(File directory, String name, List<File> matches, int depth) {
+        if (directory == null || depth > 12 || !directory.isDirectory()) return;
+        File[] children = directory.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isFile() && name.equals(child.getName())) matches.add(child);
+            else if (child.isDirectory()) collectNamedFiles(child, name, matches, depth + 1);
+        }
     }
 
     private static boolean containsNamedFile(File directory, String name) {
