@@ -20,18 +20,19 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Uses HTTPS only; known BetaCraft HTTP links are upgraded to HTTPS. Other HTTP links and insecure redirects are rejected.
 - Stores files in the app-private directory shown in the UI.
 - Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, estimates the Java major version needed by the selected Minecraft version, and checks the runtime's `release` metadata plus expected native bridge components.
-- Adds ARM64-only OpenJDK 8 and 17 runtime installers. The user can install either runtime, and preflight checks the Java major required by the selected Minecraft version. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
+- Adds ARM64-only OpenJDK 8 and 17 runtime installers. The installer validates the Java release metadata and confirms that `libjvm.so` is an ELF64 AArch64 library and that `libjli.so` is present before activating the runtime. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
+- Adds a JNI/JLI bootstrap library using Android NDK/CMake and a **Test Java runtime** action that calls OpenJDK's `JLI_Launch` entry point with `-version`. This tests the JVM bootstrap only; it does not claim Minecraft itself launches.
 
 ## Important limitations
 
-This is **not yet a working Minecraft launcher**. The Play button still reports the missing functionality rather than pretending to start a game. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
+This is **not yet a working Minecraft launcher**. The app does not yet claim to launch Minecraft until the renderer and touch-input bridge are ready. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
 
 Remaining work:
 1. Validate metadata formats and test launch-method downloads against the live catalogue, including versions without a launch method.
 2. Add version/profile and instance management.
-3. Integrate and test a native JVM launch bridge. The installer places OpenJDK 8 or 17 ARM64 files in app-private storage and can prepare the BetaCraft launch-method artifact, but it does not yet load the JVM or execute Minecraft.
+3. Test the JNI/JLI bootstrap against both published ARM64 runtimes and device Android versions. The bootstrap is implemented, but its compatibility with each runtime still needs real-device validation.
 4. Integrate a compatible rendering/input bridge (LWJGL/OpenGL compatibility) for legacy Minecraft versions and test each version separately. Java 17 is not a substitute for Java 8 on older versions.
 5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
-6. Build the APK in Actions and fix any CI errors; then test on real Android devices.
+6. Integrate a complete Minecraft launch-argument builder and connect it to the JVM bootstrap after renderer/input support is available. Build the APK in Actions and test on real Android devices.
 
 A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
