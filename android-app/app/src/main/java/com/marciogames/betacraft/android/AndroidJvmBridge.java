@@ -17,11 +17,13 @@ final class AndroidJvmBridge {
     private AndroidJvmBridge() { }
 
     static int test(File javaHome) throws Exception {
-        File jli = findNamedFile(javaHome, "libjli.so", 0);
+        File release = findNamedFile(javaHome, "release", 0);
+        File actualHome = release == null ? javaHome : release.getParentFile();
+        File jli = findNamedFile(actualHome, "libjli.so", 0);
         if (jli == null || !jli.isFile()) {
             throw new IllegalStateException("libjli.so was not found in the installed Java runtime.");
         }
-        return runNative(javaHome.getCanonicalPath(), jli.getCanonicalPath(),
+        return runNative(actualHome.getCanonicalPath(), jli.getCanonicalPath(),
                 new String[]{"java", "-version"});
     }
 
