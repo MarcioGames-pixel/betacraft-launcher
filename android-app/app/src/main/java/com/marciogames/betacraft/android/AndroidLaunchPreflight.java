@@ -29,11 +29,14 @@ final class AndroidLaunchPreflight {
         int requiredJava = recommendedJavaMajor(version);
         lines.add("Runtime recomendado para " + version + ": Java " + requiredJava);
         File runtimeRoot = new File(dataRoot, "runtime/java" + requiredJava);
-        boolean jvmReady = containsNamedFile(runtimeRoot, "libjvm.so");
+        File jvmLibrary = findNamedFile(runtimeRoot, "libjvm.so");
+        boolean jvmReady = jvmLibrary != null && AndroidRuntimeInstaller.isArm64Elf(jvmLibrary);
+        boolean jliReady = findNamedFile(runtimeRoot, "libjli.so") != null;
         boolean runtimeVersionReady = runtimeHasMajor(runtimeRoot, requiredJava);
-        lines.add((jvmReady && runtimeVersionReady ? "OK" : "FALTA")
-                + " — runtime Java Android " + requiredJava
-                + (jvmReady && runtimeVersionReady ? "" : " (libjvm.so + release compatível)"));
+        lines.add((jvmReady && jliReady && runtimeVersionReady ? "OK" : "MISSING")
+                + " — Java " + requiredJava + " Android ARM64 runtime"
+                + (jvmReady && jliReady && runtimeVersionReady ? "" :
+                " (requires AArch64 libjvm.so, libjli.so and matching release file)"));
         boolean launchBridgeReady = new File(nativeLibraryDir, "libbetacraft_runtime.so").isFile();
         lines.add((launchBridgeReady ? "OK" : "FALTA")
                 + " — ponte nativa de execução (libbetacraft_runtime.so)");
@@ -41,7 +44,7 @@ final class AndroidLaunchPreflight {
         lines.add((rendererReady ? "OK" : "FALTA")
                 + " — ponte de renderização/input (libbetacraft_renderer.so)");
 
-        boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady
+        boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
                 && runtimeVersionReady && launchBridgeReady && rendererReady;
         lines.add("");
         lines.add(ready
@@ -209,6 +212,20 @@ final class AndroidLaunchPreflight {
             if (child.isFile() && name.equals(child.getName())) matches.add(child);
             else if (child.isDirectory()) collectNamedFiles(child, name, matches, depth + 1);
         }
+    }
+
+    private static File findNamedFile(File directory, String name) {
+        if (directory == null || !directory.isDirectory()) return null;
+        File[] children = directory.listFiles();
+        if (children == null) return null;
+        for (File child : children) {
+            if (child.isFile() && name.equals(child.getName())) return child;
+            if (child.isDirectory()) {
+                File found = findNamedFile(child, name);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static boolean containsNamedFile(File directory, String name) {
