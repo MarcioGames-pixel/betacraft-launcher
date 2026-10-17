@@ -360,6 +360,8 @@ public final class MainActivity extends Activity {
             status.setText("Este pacote de runtime é ARM64; arquitetura do dispositivo não compatível.");
             return;
         }
+        final String selectedVersion = versionSpinner == null || versionSpinner.getSelectedItem() == null
+                ? "" : String.valueOf(versionSpinner.getSelectedItem());
         setBusy(true, "Preparando instalação do OpenJDK 17 ARM64…");
         io.execute(() -> {
             try {
@@ -376,8 +378,7 @@ public final class MainActivity extends Activity {
                                     ? " (" + current + "/" + total + ")" : ""));
                         }));
                 String report = AndroidLaunchPreflight.inspect(
-                        dataRoot, versionSpinner == null || versionSpinner.getSelectedItem() == null
-                                ? "" : String.valueOf(versionSpinner.getSelectedItem()),
+                        dataRoot, selectedVersion,
                         android.os.Build.SUPPORTED_ABIS,
                         new File(getApplicationInfo().nativeLibraryDir));
                 runOnUiThread(() -> setBusy(false,
