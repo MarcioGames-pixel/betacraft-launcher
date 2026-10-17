@@ -47,7 +47,7 @@ final class AndroidRuntimeInstaller {
             throw new IllegalArgumentException("Choose Java 8 or Java 17.");
         }
         if (!runtimeDirectory.exists() && !runtimeDirectory.mkdirs()) {
-            throw new IllegalStateException("Não foi possível criar a pasta runtime.");
+            throw new IllegalStateException("Could not create the runtime directory.");
         }
         String label = "jre" + major;
         File archive = new File(runtimeDirectory, label + "-arm64.tar.xz.part");
@@ -68,12 +68,12 @@ final class AndroidRuntimeInstaller {
         deleteTree(backup);
         if (active.exists() && !active.renameTo(backup)) {
             deleteTree(staged);
-            throw new IllegalStateException("Não foi possível guardar o runtime anterior.");
+            throw new IllegalStateException("Could not back up the previous runtime.");
         }
         if (!staged.renameTo(active)) {
             if (backup.exists()) backup.renameTo(active);
             deleteTree(staged);
-            throw new IllegalStateException("Não foi possível ativar o runtime instalado.");
+            throw new IllegalStateException("Could not activate the installed runtime.");
         }
         deleteTree(backup);
         deleteTree(archive);
@@ -91,7 +91,7 @@ final class AndroidRuntimeInstaller {
                 String host = current.getHost().toLowerCase(java.util.Locale.ROOT);
                 if (!(host.equals("github.com") || host.equals("release-assets.githubusercontent.com")
                         || host.equals("objects.githubusercontent.com"))) {
-                    throw new IllegalStateException("Host de download não autorizado: " + host);
+                    throw new IllegalStateException("Untrusted download host: " + host);
                 }
                 connection = (HttpURLConnection) current.openConnection();
                 connection.setConnectTimeout(20000);
@@ -104,7 +104,7 @@ final class AndroidRuntimeInstaller {
                     connection.disconnect();
                     connection = null;
                     if (location == null || redirects == 5) {
-                        throw new IllegalStateException("Redirecionamento do runtime inválido.");
+                        throw new IllegalStateException("Invalid runtime download redirect.");
                     }
                     current = new URL(current, location);
                     continue;
@@ -144,7 +144,7 @@ final class AndroidRuntimeInstaller {
 
     private static void extract(File archive, File destination, int major, Progress progress) throws Exception {
         if (!destination.mkdirs() && !destination.isDirectory()) {
-            throw new IllegalStateException("Não foi possível criar a pasta temporária.");
+            throw new IllegalStateException("Could not create the temporary extraction directory.");
         }
         long expanded = 0;
         int entries = 0;
@@ -155,7 +155,7 @@ final class AndroidRuntimeInstaller {
             TarArchiveEntry entry;
             while ((entry = tar.getNextTarEntry()) != null) {
                 if (++entries > MAX_ENTRIES) {
-                    throw new IllegalStateException("O arquivo contém entradas demais.");
+                    throw new IllegalStateException("The archive contains too many entries.");
                 }
                 String name = entry.getName();
                 File root = destination.getCanonicalFile();
@@ -168,7 +168,7 @@ final class AndroidRuntimeInstaller {
                 }
                 if (entry.isDirectory()) {
                     if (!output.mkdirs() && !output.isDirectory()) {
-                        throw new IllegalStateException("Falha ao criar diretório do runtime.");
+                        throw new IllegalStateException("Could not create a runtime directory.");
                     }
                     continue;
                 }
@@ -181,7 +181,7 @@ final class AndroidRuntimeInstaller {
                     String resolvedLink = linkTarget.getCanonicalPath();
                     if (new File(entry.getLinkName()).isAbsolute()
                             || !(resolvedLink.equals(root.getPath()) || resolvedLink.startsWith(rootPath))) {
-                        throw new IllegalStateException("Link simbólico inseguro no runtime.");
+                        throw new IllegalStateException("Unsafe symbolic link in runtime archive.");
                     }
                     if (output.exists()) {
                         output.delete();
@@ -194,7 +194,7 @@ final class AndroidRuntimeInstaller {
                     String hardTargetPath = hardTarget.getCanonicalPath();
                     if (!(hardTargetPath.equals(root.getPath()) || hardTargetPath.startsWith(rootPath))
                             || !hardTarget.isFile()) {
-                        throw new IllegalStateException("Link rígido inválido no runtime.");
+                        throw new IllegalStateException("Invalid hard link in runtime archive.");
                     }
                     copy(hardTarget, output);
                     continue;
@@ -202,7 +202,7 @@ final class AndroidRuntimeInstaller {
                 if (!entry.isFile()) continue;
                 long declared = entry.getSize();
                 if (declared < 0 || expanded + declared > MAX_UNPACKED_BYTES) {
-                    throw new IllegalStateException("O runtime excede o limite de extração.");
+                    throw new IllegalStateException("Runtime exceeds the extraction size limit.");
                 }
                 try (FileOutputStream out = new FileOutputStream(output)) {
                     int count;
