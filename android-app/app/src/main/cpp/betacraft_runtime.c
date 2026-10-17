@@ -102,8 +102,9 @@ Java_com_marciogames_betacraft_android_AndroidJvmBridge_runNative(
 
     if (converted == argc) {
         LOGI("Calling OpenJDK JLI_Launch with %d arguments", (int) argc);
-        const char *full_version = "1.8.0-internal";
-        const char *dot_version = "1.8";
+        int java_major = strstr(java_home, "java17") != NULL ? 17 : 8;
+        const char *full_version = java_major == 17 ? "17.0.0-internal" : "1.8.0-internal";
+        const char *dot_version = java_major == 17 ? "17" : "1.8";
         result = launch((int) argc, argv, 0, NULL, 0, NULL,
                         full_version, dot_version, "java", "openjdk",
                         JNI_FALSE, JNI_TRUE, JNI_FALSE, 0);
