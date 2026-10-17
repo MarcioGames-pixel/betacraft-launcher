@@ -103,6 +103,7 @@ final class AndroidLaunchPreflight {
 
     private static boolean checkLaunchMethod(File dataRoot, String version, List<String> lines) {
         File info = new File(new File(new File(dataRoot, "versions"), "jsons"), version + ".info");
+        File versionJar = new File(new File(dataRoot, "versions"), version + ".jar");
         String methodName = null;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
                 new FileInputStream(info), StandardCharsets.UTF_8))) {
@@ -114,19 +115,33 @@ final class AndroidLaunchPreflight {
                     break;
                 }
             }
-        } catch (Exception e) {
-            lines.add("MISSING — could not read launch-method");
-            return false;
+        } catch (Exception ignored) {
+            // Old/custom versions may not have a metadata method; try the desktop launcher's
+            // class-presence detector below instead.
         }
+
         if (methodName == null || methodName.isEmpty()) {
-            lines.add("NOTICE — version does not declare a launch-method; special detection may be required");
-            return false;
+            try {
+                methodName = AndroidLaunchMethodDetector.detect(versionJar);
+            } catch (Exception ignored) { }
+            if (methodName == null) {
+                lines.add("MISSING — launch method could not be detected from the version JAR");
+                return false;
+            }
+            lines.add("OK — detected built-in launch method: " + methodName);
+            return true;
         }
+
         if (!methodName.matches("[A-Za-z0-9._-]{1,100}") || ".".equals(methodName)
                 || "..".equals(methodName)) {
             lines.add("INVALID — unsafe launch-method name");
             return false;
         }
+        if (AndroidLaunchMethodDetector.isBuiltIn(methodName)) {
+            lines.add("OK — built-in launch method: " + methodName + " (no separate method JAR required)");
+            return true;
+        }
+
         File jar = new File(new File(new File(dataRoot, "launcher"), "launch-methods"),
                 methodName + ".jar");
         boolean ready = jar.isFile() && jar.length() > 0;
@@ -137,7 +152,7 @@ final class AndroidLaunchPreflight {
                 ready = false;
             }
         }
-        lines.add((ready ? "OK" : "MISSING") + " — launch-method JAR "
+        lines.add((ready ? "OK" : "MISSING") + " — external launch-method JAR "
                 + methodName + (ready ? "" : " (use Install launch method)"));
         return ready;
     }
