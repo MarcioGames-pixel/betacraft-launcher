@@ -229,7 +229,7 @@ final class AndroidRuntimeInstaller {
     static boolean hasCompatibleRuntime(File root, int expectedMajor) {
         File jvm = findFileObject(root, "libjvm.so");
         File jli = findFileObject(root, "libjli.so");
-        return jvm != null && jli != null && isArm64Elf(jvm)
+        return jvm != null && jli != null && isArm64Elf(jvm) && isArm64Elf(jli)
                 && hasJavaMajorRelease(root, expectedMajor);
     }
 
