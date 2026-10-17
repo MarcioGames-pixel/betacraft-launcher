@@ -17,7 +17,7 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Downloads to temporary files, rejects empty JARs, verifies SHA-1 when metadata supplies it, and then moves the result into the versions directory.
 - Uses HTTPS only; known BetaCraft HTTP links are upgraded to HTTPS. Other HTTP links and insecure redirects are rejected.
 - Stores files in the app-private directory shown in the UI.
-- Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, and checks for the expected JVM and native bridge components.
+- Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, estimates the Java major version needed by the selected Minecraft version, and checks the runtime's `release` metadata plus expected native bridge components.
 
 ## Important limitations
 
