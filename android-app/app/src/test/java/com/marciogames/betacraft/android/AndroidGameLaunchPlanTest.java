@@ -95,6 +95,7 @@ public class AndroidGameLaunchPlanTest {
             createJar(jar, null, "com/example/legacy/MinecraftApplet.class");
             assertEquals("com.example.legacy.MinecraftApplet",
                     AndroidLaunchMethodDetector.detectAppletClass(jar));
+            assertEquals("classic", AndroidLaunchMethodDetector.detect(jar));
         } finally {
             deleteTree(temp);
         }
