@@ -4,9 +4,12 @@
     <application
         android:allowBackup="true"
         android:label="BetaCraft Android"
+        android:icon="@drawable/betacraft_icon"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity android:name=".RendererTestActivity" android:exported="false" />
+        <activity android:name=".InstancesActivity" android:exported="false" />
+        <activity android:name=".LauncherSettingsActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
