@@ -18,6 +18,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.Collections;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -68,6 +69,7 @@ final class AndroidRuntimeInstaller {
         download(archive, major, progress);
         if (major == 8) {
             extractJava8Artifact(archive, staged, progress);
+            unpackJava8PackedJars(staged);
         } else {
             extract(archive, staged, major, progress);
         }
@@ -271,6 +273,60 @@ final class AndroidRuntimeInstaller {
         extract(universal, destination, 8, progress);
         extract(arm64, destination, 8, progress);
         deleteTree(packageDir);
+    }
+
+
+    /**
+     * Pojav's Android Java 8 package uses Pack200-compressed runtime JARs.
+     * Unpack them before the JVM self-test, using the Android-native unpack200
+     * executable shipped inside that same Java 8 runtime.
+     */
+    private static void unpackJava8PackedJars(File javaHome) throws Exception {
+        java.util.List<File> packedFiles = new java.util.ArrayList<>();
+        collectPackedFiles(javaHome, packedFiles, 0);
+        if (packedFiles.isEmpty()) return;
+
+        File unpacker = new File(new File(javaHome, "bin"), "unpack200");
+        if (!unpacker.isFile()) {
+            throw new IllegalStateException("Java 8 runtime contains .pack files but no Android unpack200 executable.");
+        }
+        unpacker.setExecutable(true, false);
+        for (File packed : packedFiles) {
+            String name = packed.getName();
+            File unpacked = new File(packed.getParentFile(),
+                    name.substring(0, name.length() - ".pack".length()));
+            File log = new File(javaHome, "unpack200.log");
+            ProcessBuilder builder = new ProcessBuilder(unpacker.getAbsolutePath(), "-r",
+                    packed.getAbsolutePath(), unpacked.getAbsolutePath());
+            builder.directory(javaHome);
+            builder.redirectErrorStream(true);
+            builder.redirectOutput(log);
+            java.util.Map<String, String> environment = builder.environment();
+            environment.put("JAVA_HOME", javaHome.getAbsolutePath());
+            String lib = new File(javaHome, "lib/aarch64").getAbsolutePath()
+                    + ":" + new File(javaHome, "lib/aarch64/server").getAbsolutePath()
+                    + ":" + new File(javaHome, "lib").getAbsolutePath();
+            environment.put("LD_LIBRARY_PATH", lib);
+            Process process = builder.start();
+            int exit = process.waitFor();
+            if (log.exists()) log.delete();
+            if (exit != 0 || !unpacked.isFile() || unpacked.length() == 0) {
+                throw new IllegalStateException("Could not unpack Java 8 runtime file: " + name
+                        + " (unpack200 exit code " + exit + ").");
+            }
+        }
+    }
+
+    private static void collectPackedFiles(File directory, java.util.List<File> result, int depth) {
+        if (directory == null || depth > 16 || result.size() > 20000) return;
+        File[] children = directory.listFiles();
+        if (children == null) return;
+        for (File child : children) {
+            if (child.isFile() && child.getName().endsWith(".pack")) result.add(child);
+            else if (child.isDirectory() && !java.nio.file.Files.isSymbolicLink(child.toPath())) {
+                collectPackedFiles(child, result, depth + 1);
+            }
+        }
     }
 
     private static void extract(File archive, File destination, int major, Progress progress) throws Exception {
