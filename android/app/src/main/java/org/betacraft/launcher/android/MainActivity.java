@@ -706,7 +706,8 @@ public final class MainActivity extends Activity {
         card("Instances", Integer.toString(instances.size()));
         card("Saved servers", Integer.toString(servers.size()));
         card("Java runtime", runtimeStatus);
-        card("Runtime path", runtimeJava().getAbsolutePath());\n        card("Last action", "Runtime import/test runs in the background. Minecraft renderer and launch bridge are separate requirements.");
+        card("Runtime path", runtimeJava().getAbsolutePath());
+        card("Last action", "Runtime import/test runs in the background. Minecraft renderer and launch bridge are separate requirements.");
     }
 
     private void showInstanceManager() {
