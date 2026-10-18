@@ -49,16 +49,31 @@ final class AndroidLaunchPreflight {
         lines.add((surfaceTestReady ? "OK" : "MISSING")
                 + " — EGL surface smoke-test library (libbetacraft_renderer.so; does not render Minecraft)");
         File librariesDir = new File(dataRoot, "libraries");
-        boolean lwjglReady = containsNamedFile(librariesDir, "liblwjgl.so")
-                || containsNamedFile(librariesDir, "liblwjgl64.so");
+        boolean lwjglReady = containsNamedFile(new File(nativeLibraryDir, "."), "liblwjgl64.so")
+                || containsNamedFile(new File(nativeLibraryDir, "."), "liblwjgl.so")
+                || containsNamedFile(librariesDir, "liblwjgl64.so")
+                || containsNamedFile(librariesDir, "liblwjgl.so");
+        boolean glfwReady = containsNamedFile(new File(nativeLibraryDir, "."), "libglfw.so")
+                || containsNamedFile(librariesDir, "libglfw.so");
+        boolean jawtReady = containsNamedFile(new File(nativeLibraryDir, "."), "libjawt.so")
+                || containsNamedFile(librariesDir, "libjawt.so");
+        File compatJar = new File(dataRoot, "launcher/components/lwjgl2-android/lwjgl.jar");
+        boolean compatJarReady = compatJar.isFile() && compatJar.length() > 100_000;
         lines.add((lwjglReady ? "OK" : "MISSING")
-                + " — LWJGL JNI native library (required by the selected game version)");
-        lines.add("PARTIAL — Minecraft input bridge: Android input capture and bounded JNI queue exist, but events are not yet consumed by an LWJGL Android backend");
-        lines.add("MISSING — complete version-specific dependency/asset resolution and a compatible LWJGL Android render loop");
+                + " — LWJGL JNI native library (liblwjgl64.so / liblwjgl.so)");
+        lines.add((glfwReady ? "OK" : "MISSING")
+                + " — Android GLFW backend (libglfw.so)");
+        lines.add((jawtReady ? "OK" : "MISSING")
+                + " — AWT compatibility native library (libjawt.so)");
+        lines.add((compatJarReady ? "OK" : "MISSING")
+                + " — bundled Android LWJGL compatibility JAR");
+        lines.add("PARTIAL — Android input queue and touch controls exist, but no live Minecraft LWJGL event loop is consuming the queue yet");
+        lines.add("MISSING — complete version-specific dependency/asset resolution and game-backed EGL/GLFW surface integration");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && androidAdapterReady
                 && abiReady && jvmReady && jliReady && runtimeVersionReady
-                && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady;
+                && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady
+                && glfwReady && jawtReady && compatJarReady;
         lines.add("");
         lines.add(ready
                 ? "Base runtime checks passed, but LWJGL input consumption, full dependency resolution and device testing are still required."
