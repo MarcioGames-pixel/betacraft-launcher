@@ -20,7 +20,7 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Uses HTTPS only; known BetaCraft HTTP links are upgraded to HTTPS. Other HTTP links and insecure redirects are rejected.
 - Stores files in the app-private directory shown in the UI.
 - Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, estimates the Java major version needed by the selected Minecraft version, and checks the runtime's `release` metadata plus expected native bridge components.
-- Adds ARM64-only OpenJDK 8 and 17 runtime installers. The installer validates the Java release metadata and confirms that `libjvm.so` is an ELF64 AArch64 library and that `libjli.so` is present before activating the runtime. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
+- Adds Android ARM64 OpenJDK 8 and 17 runtime installers. Java 8 is resolved from the latest successful public Android `jre8-pojav` CI artifact (not the similarly named iOS archive); Java 17 uses the Android-specific Pojav build. The installer validates Java release metadata and confirms that `libjvm.so` and `libjli.so` are ELF64 AArch64 libraries before activating the runtime. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
 - Adds a JNI/JLI bootstrap library using Android NDK/CMake and a **Test Java runtime** action that calls OpenJDK's `JLI_Launch` entry point with `-version`. This tests the JVM bootstrap only; it does not claim Minecraft itself launches.
 
 ## Important limitations
