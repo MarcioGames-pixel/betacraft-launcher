@@ -85,12 +85,18 @@ final class AndroidGameLaunchPlan {
         File libraries = new File(dataRoot, "libraries");
         List<File> jars = new ArrayList<>();
         collectJars(libraries, jars, 0);
-        // These compatibility jars must be visible to the launched game JVM,
-        // not merely to the Android application's class loader.
-        File compatibility = new File(dataRoot, "launcher/components/lwjgl3");
-        collectJars(compatibility, jars, 0);
+        // The Android LWJGL 2 fork replaces org.lwjgl.opengl.Display and must
+        // precede the desktop LWJGL jar supplied by the selected game version.
+        File compatibility = new File(dataRoot, "launcher/components/lwjgl2-android");
+        List<File> compatibilityJars = new ArrayList<>();
+        collectJars(compatibility, compatibilityJars, 0);
+        Collections.sort(compatibilityJars, Comparator.comparing(File::getAbsolutePath));
         Collections.sort(jars, Comparator.comparing(File::getAbsolutePath));
-        StringBuilder cp = new StringBuilder(versionJar.getAbsolutePath());
+        StringBuilder cp = new StringBuilder();
+        for (File jar : compatibilityJars) {
+            cp.append(jar.getAbsolutePath()).append(File.pathSeparator);
+        }
+        cp.append(versionJar.getAbsolutePath());
         for (File jar : jars) {
             if (jar.getCanonicalFile().equals(versionJar.getCanonicalFile())) continue;
             cp.append(File.pathSeparator).append(jar.getAbsolutePath());
@@ -159,7 +165,7 @@ final class AndroidGameLaunchPlan {
                 + "Runtime: " + javaHome.getAbsolutePath() + "\n"
                 + "Game directory: " + gameDirectory.getAbsolutePath() + "\n"
                 + "Classpath entries: " + (classPath.isEmpty() ? 0 : classPath.split(java.util.regex.Pattern.quote(File.pathSeparator), -1).length)
-                + "\n\nThe launched JVM classpath includes any installed launcher/components/lwjgl3 compatibility jars. A matching Android LWJGL backend and game-owned EGL surface are still required before Minecraft can play.";
+                + "\n\nClasspath checks for the bundled Android LWJGL 2 compatibility jar first. Real-device validation is still required: this backend must successfully create its GLFW/EGL window and render the selected game.";
     }
 
     private static String findMainClass(File jar) throws IOException {
