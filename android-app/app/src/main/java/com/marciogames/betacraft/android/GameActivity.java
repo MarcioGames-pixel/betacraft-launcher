@@ -137,6 +137,7 @@ public final class GameActivity extends Activity {
                 runOnUiThread(() -> {
                     if (status != null) status.setText("Could not start Minecraft: " + detail);
                 });
+            }
         });
     }
 
