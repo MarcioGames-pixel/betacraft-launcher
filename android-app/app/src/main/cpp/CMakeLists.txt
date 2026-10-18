@@ -35,3 +35,9 @@ if(TARGET GL)
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
     )
 endif()
+
+# Native EGL/GLES2 surface smoke test used to validate Android window lifecycle.
+add_library(betacraft_renderer SHARED betacraft_renderer.c)
+target_compile_features(betacraft_renderer PRIVATE c_std_11)
+target_compile_options(betacraft_renderer PRIVATE -Wall -Wextra -Werror=return-type)
+target_link_libraries(betacraft_renderer PRIVATE android EGL GLESv2 log)
