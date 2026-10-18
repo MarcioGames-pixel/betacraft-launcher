@@ -414,8 +414,12 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 installBundledLwjglCompatibility();
+                int preferredRamMb = getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getInt("preferred_ram_mb", 1536);
+                preferredRamMb = Math.max(512, Math.min(4096, preferredRamMb));
                 AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(dataRoot,
-                        new File(getApplicationInfo().nativeLibraryDir), selected, player, instanceId);
+                        new File(getApplicationInfo().nativeLibraryDir), selected, player,
+                        instanceId, preferredRamMb);
                 File libraries = new File(dataRoot, "libraries");
                 File packagedNatives = new File(getApplicationInfo().nativeLibraryDir);
                 File lwjgl = findNamedFile(packagedNatives, "liblwjgl64.so");
