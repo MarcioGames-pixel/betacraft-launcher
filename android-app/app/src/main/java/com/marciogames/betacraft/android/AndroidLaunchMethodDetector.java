@@ -42,7 +42,11 @@ final class AndroidLaunchMethodDetector {
             if (has(archive, "net/minecraft/client/MinecraftApplet.class")) return "indev";
             if (has(archive, "net/minecraft/client/main/Main.class")) return "1.6";
         }
-        return null;
+
+        // BetaCraft's classic wrapper hosts legacy Applets. Keep specific
+        // signatures above, but recognize repackaged clients too.
+        // Classification does not mean Android rendering is implemented.
+        return detectAppletClass(jar) == null ? null : "classic";
     }
 
     /**
