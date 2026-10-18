@@ -5,26 +5,23 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.SparseIntArray;
 import android.view.MotionEvent;
 import android.view.View;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Reusable transparent on-screen controls for an Android-hosted legacy Minecraft view.
- * Add this View above the game SurfaceView in a FrameLayout and connect a CallbackSink.
- * This view does not render Minecraft and remains inert until a compatible LWJGL sink is attached.
+ * Multiple pointers may hold movement/jump and mouse buttons at the same time.
+ * This view does not render Minecraft; the host must provide a live LWJGL CallbackSink.
  */
 final class AndroidTouchControls extends View {
     private static final int KEY_W = 87, KEY_A = 65, KEY_S = 83, KEY_D = 68;
     private static final int KEY_SPACE = 32, KEY_E = 69, KEY_ESCAPE = 256;
+    private static final int CONTROL_MOUSE_LEFT = -1;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Map<Integer, Integer> heldKeys = new HashMap<>();
+    // Maps pointer IDs to a GLFW key or CONTROL_MOUSE_LEFT while each finger is held.
+    private final SparseIntArray pointerControls = new SparseIntArray();
     private AndroidLwjglInputAdapter.CallbackSink sink;
-    private float downX, downY;
-    private int activePointer = -1;
-    private int activeKey;
-    private boolean activeMouse;
 
     AndroidTouchControls(Context context) { super(context); init(); }
     AndroidTouchControls(Context context, AttributeSet attrs) { super(context, attrs); init(); }
@@ -33,6 +30,7 @@ final class AndroidTouchControls extends View {
         releaseAll();
         sink = value;
         setVisibility(value == null ? View.GONE : View.VISIBLE);
+        invalidate();
     }
 
     private void init() {
@@ -72,26 +70,38 @@ final class AndroidTouchControls extends View {
         int action = event.getActionMasked();
         int index = event.getActionIndex();
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
-            if (activePointer != -1) return true;
-            downX = event.getX(index);
-            downY = event.getY(index);
-            int key = hitKey(downX, downY);
-            boolean mouseHit = hit(downX, downY, 0.72f, 0.76f, 0.10f);
-            if (key == 0 && !mouseHit) return false;
-            activePointer = event.getPointerId(index);
-            if (key != 0) { activeKey = key; sink.key(key, 0, true); }
-            else { activeMouse = true; sink.mouseButton(0, true); }
+            int pointerId = event.getPointerId(index);
+            float x = event.getX(index), y = event.getY(index);
+            int key = hitKey(x, y);
+            boolean mouseHit = hit(x, y, 0.72f, 0.76f, 0.10f);
+            if (key == 0 && !mouseHit) {
+                // Let the underlying game surface receive look/aim gestures.
+                return pointerControls.size() > 0;
+            }
+            if (pointerControls.indexOfKey(pointerId) >= 0) return true;
+            int control = key != 0 ? key : CONTROL_MOUSE_LEFT;
+            pointerControls.put(pointerId, control);
+            if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, true);
+            else sink.key(control, 0, true);
             invalidate();
             return true;
         }
-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP
-                || action == MotionEvent.ACTION_CANCEL) {
-            int pointer = event.getPointerId(index);
-            if (pointer == activePointer) releaseActive();
+        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) {
+            releasePointer(event.getPointerId(index));
             invalidate();
             return true;
         }
-        return true;
+        if (action == MotionEvent.ACTION_CANCEL) {
+            releaseAll();
+            invalidate();
+            return true;
+        }
+        if (action == MotionEvent.ACTION_MOVE) {
+            // Fingers already assigned to a control remain held until lifted.
+            // Unassigned fingers can still be used for the underlying look surface.
+            return pointerControls.size() > 0;
+        }
+        return pointerControls.size() > 0;
     }
 
     private int hitKey(float x, float y) {
@@ -111,24 +121,26 @@ final class AndroidTouchControls extends View {
         return dx * dx + dy * dy <= radius * radius;
     }
 
-    private void releaseActive() {
-        if (activeKey != 0) sink.key(activeKey, 0, false);
-        if (activeMouse) sink.mouseButton(0, false);
-        activeKey = 0;
-        activeMouse = false;
-        activePointer = -1;
+    private void releasePointer(int pointerId) {
+        int index = pointerControls.indexOfKey(pointerId);
+        if (index < 0) return;
+        int control = pointerControls.valueAt(index);
+        pointerControls.removeAt(index);
+        if (sink != null) {
+            if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, false);
+            else sink.key(control, 0, false);
+        }
     }
 
     private void releaseAll() {
         if (sink != null) {
-            for (Integer key : heldKeys.values()) sink.key(key, 0, false);
-            if (activeKey != 0) sink.key(activeKey, 0, false);
-            if (activeMouse) sink.mouseButton(0, false);
+            for (int i = pointerControls.size() - 1; i >= 0; i--) {
+                int control = pointerControls.valueAt(i);
+                if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, false);
+                else sink.key(control, 0, false);
+            }
         }
-        heldKeys.clear();
-        activeKey = 0;
-        activeMouse = false;
-        activePointer = -1;
+        pointerControls.clear();
     }
 
     @Override protected void onDetachedFromWindow() {
