@@ -462,7 +462,7 @@ public final class MainActivity extends Activity {
                 // exceptions or the normal launch error UI can run.
                 try {
                     AndroidJvmBridge.test(plan.javaHome);
-                } catch (Throwable runtimeFailure) {
+                } catch (Exception runtimeFailure) {
                     String detail = safeMessage(runtimeFailure);
                     if (detail.contains("Field too big for insn")
                             || detail.contains("assembler_aarch64.hpp")
