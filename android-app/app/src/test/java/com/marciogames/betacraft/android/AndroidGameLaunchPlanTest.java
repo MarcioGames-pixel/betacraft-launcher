@@ -24,7 +24,7 @@ public class AndroidGameLaunchPlanTest {
             File dependency = new File(data, "libraries/example/dependency.jar");
             dependency.getParentFile().mkdirs();
             createJar(dependency, null, "example/Dependency.class");
-            File lwjglx = new File(data, "launcher/components/lwjgl3/lwjgl-lwjglx.jar");
+            File lwjglx = new File(data, "launcher/components/lwjgl2-android/lwjgl.jar");
             lwjglx.getParentFile().mkdirs();
             createJar(lwjglx, null, "org/lwjgl/opengl/Display.class");
 
@@ -43,8 +43,11 @@ public class AndroidGameLaunchPlanTest {
                     plan.gameDirectory.getCanonicalFile());
             assertTrue(plan.classPath.contains(jar.getAbsolutePath()));
             assertTrue(plan.classPath.contains(dependency.getAbsolutePath()));
-            assertTrue("Compatibility jars must be visible to the launched JVM",
+            assertTrue("Android LWJGL compatibility jar must be visible to the launched JVM",
                     plan.classPath.contains(lwjglx.getAbsolutePath()));
+            assertTrue("Compatibility jar must precede the game jar to override desktop Display",
+                    plan.classPath.indexOf(lwjglx.getAbsolutePath())
+                            < plan.classPath.indexOf(jar.getAbsolutePath()));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("-cp"));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("--username"));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("Marcio_1"));
