@@ -2,9 +2,33 @@ plugins {
     id 'com.android.application'
 }
 
+def legacyAppletSource = file('src/appletHost/java/com/marciogames/betacraft/runtime/LegacyAppletMain.java')
+def legacyAppletClasses = layout.buildDirectory.dir('generated/legacy-applet/classes')
+def legacyAppletAssets = layout.buildDirectory.dir('generated/legacy-applet/assets')
+
+tasks.register('compileLegacyAppletHost', JavaCompile) {
+    source files(legacyAppletSource)
+    destinationDirectory = legacyAppletClasses
+    options.release = 8
+    options.encoding = 'UTF-8'
+}
+
+tasks.register('packageLegacyAppletHost', Jar) {
+    dependsOn tasks.named('compileLegacyAppletHost')
+    archiveFileName = 'legacy-applet-host.jar'
+    destinationDirectory = legacyAppletAssets.map { it.dir('legacy-applet') }
+    from legacyAppletClasses
+}
+
 android {
     namespace 'com.marciogames.betacraft.android'
     compileSdk 35
+
+    sourceSets {
+        main {
+            assets.srcDir(legacyAppletAssets)
+        }
+    }
 
     defaultConfig {
         applicationId 'com.marciogames.betacraft.android'
@@ -44,4 +68,9 @@ dependencies {
     implementation 'org.tukaani:xz:1.10'
 
     testImplementation 'junit:junit:4.13.2'
+}
+
+// Make the JVM-side applet host available as a normal JAR in the APK assets.
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('packageLegacyAppletHost')
 }
