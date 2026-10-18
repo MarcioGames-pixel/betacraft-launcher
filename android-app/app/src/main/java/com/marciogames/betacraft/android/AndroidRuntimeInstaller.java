@@ -18,7 +18,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import java.util.Collections;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -323,7 +322,7 @@ final class AndroidRuntimeInstaller {
         if (children == null) return;
         for (File child : children) {
             if (child.isFile() && child.getName().endsWith(".pack")) result.add(child);
-            else if (child.isDirectory() && !java.nio.file.Files.isSymbolicLink(child.toPath())) {
+            else if (child.isDirectory()) {
                 collectPackedFiles(child, result, depth + 1);
             }
         }
