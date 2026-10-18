@@ -207,6 +207,24 @@ public final class MainActivity extends Activity {
         graphicsTestButton.setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, RendererTestActivity.class)));
 
+        Button instancesButton = new Button(this);
+        instancesButton.setText("Manage game instances");
+        styleButton(instancesButton, false);
+        LinearLayout.LayoutParams instancesParams = matchWrap();
+        instancesParams.topMargin = dp(8);
+        root.addView(instancesButton, instancesParams);
+        instancesButton.setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, InstancesActivity.class)));
+
+        Button settingsButton = new Button(this);
+        settingsButton.setText("Launcher settings");
+        styleButton(settingsButton, false);
+        LinearLayout.LayoutParams settingsParams = matchWrap();
+        settingsParams.topMargin = dp(8);
+        root.addView(settingsButton, settingsParams);
+        settingsButton.setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, LauncherSettingsActivity.class)));
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
         progressBar.setVisibility(android.view.View.GONE);
