@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <android/log.h>
 
 #define LOG_TAG "BetaCraftRuntime"
@@ -31,6 +33,68 @@ static void set_runtime_environment(const char *java_home, const char *jli_path)
     }
 }
 
+
+/* Android's dynamic linker does not reliably re-read LD_LIBRARY_PATH after
+ * process startup. Locate and preload runtime libraries by absolute path,
+ * as Pojav's launcher does, before JLI tries to resolve them by soname. */
+static int find_library_path(const char *directory, const char *name,
+        char *result, size_t result_size, int depth) {
+    if (!directory || depth > 10) return 0;
+    DIR *dir = opendir(directory);
+    if (!dir) return 0;
+    struct dirent *entry;
+    int found = 0;
+    while (!found && (entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+        char child[PATH_MAX];
+        int written = snprintf(child, sizeof(child), "%s/%s", directory, entry->d_name);
+        if (written < 0 || (size_t) written >= sizeof(child)) continue;
+        struct stat st;
+        if (lstat(child, &st) != 0) continue;
+        if (S_ISREG(st.st_mode) && strcmp(entry->d_name, name) == 0) {
+            if (strlen(child) + 1 <= result_size) {
+                strcpy(result, child);
+                found = 1;
+            }
+        } else if (S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode)) {
+            found = find_library_path(child, name, result, result_size, depth + 1);
+        }
+    }
+    closedir(dir);
+    return found;
+}
+
+static int preload_runtime_library(const char *java_home, const char *name, int required) {
+    char path[PATH_MAX];
+    if (!find_library_path(java_home, name, path, sizeof(path), 0)) {
+        if (required) LOGE("Required runtime library not found: %s", name);
+        else LOGI("Optional runtime library not found: %s", name);
+        return required ? 0 : 1;
+    }
+    void *handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+    if (!handle) {
+        LOGE("Could not preload %s: %s", path, dlerror());
+        return required ? 0 : 1;
+    }
+    LOGI("Preloaded runtime library: %s", path);
+    return 1;
+}
+
+static int preload_jvm_dependencies(const char *java_home) {
+    /* libjvm must be loaded before JLI_Launch so Android can resolve it even
+       when the runtime's native directories are outside the app's linker paths. */
+    if (!preload_runtime_library(java_home, "libjvm.so", 1)) return 0;
+    const char *optional_libraries[] = {
+        "libverify.so", "libjava.so", "libnet.so", "libnio.so",
+        "libawt.so", "libawt_headless.so", "libfreetype.so", "libfontmanager.so",
+        "libmanagement.so", "libinstrument.so", "libzip.so", "libjdwp.so"
+    };
+    for (size_t i = 0; i < sizeof(optional_libraries) / sizeof(optional_libraries[0]); i++) {
+        preload_runtime_library(java_home, optional_libraries[i], 0);
+    }
+    return 1;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_marciogames_betacraft_android_AndroidJvmBridge_runNative(
         JNIEnv *env, jclass clazz, jstring java_home_string,
@@ -56,6 +120,12 @@ Java_com_marciogames_betacraft_android_AndroidJvmBridge_runNative(
         (*env)->ReleaseStringUTFChars(env, java_home_string, java_home);
         (*env)->ReleaseStringUTFChars(env, jli_path_string, jli_path);
         return -4;
+    }
+    if (!preload_jvm_dependencies(java_home)) {
+        dlclose(handle);
+        (*env)->ReleaseStringUTFChars(env, java_home_string, java_home);
+        (*env)->ReleaseStringUTFChars(env, jli_path_string, jli_path);
+        return -9;
     }
 
     dlerror();
