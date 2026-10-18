@@ -2,12 +2,10 @@ package com.marciogames.betacraft.android;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.jar.JarFile;
 
 /**
  * Describes the applet entry point and standard parameters needed by a future
@@ -55,7 +53,7 @@ final class AndroidAppletLaunchAdapter {
             throw new IllegalArgumentException("Applet dimensions are outside supported bounds.");
         }
         File absoluteJar = jar.getCanonicalFile();
-        URL codeBase = absoluteJar.toURI().toURL();
+        URL codeBase = absoluteJar.getParentFile().toURI().toURL();
         URL documentBase = gameDirectory.getCanonicalFile().toURI().toURL();
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("username", player);
@@ -75,8 +73,6 @@ final class AndroidAppletLaunchAdapter {
     /** Check class presence without defining or initializing any game classes. */
     static boolean containsApplet(File jar) throws IOException {
         if (jar == null || !jar.isFile()) return false;
-        try (JarFile archive = new JarFile(jar)) {
-            return AndroidLaunchMethodDetector.detectAppletClass(jar) != null;
-        }
+        return AndroidLaunchMethodDetector.detectAppletClass(jar) != null;
     }
 }
