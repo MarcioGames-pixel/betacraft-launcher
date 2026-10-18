@@ -42,6 +42,22 @@ final class AndroidLwjglInputAdapter {
         };
     }
 
+    /**
+     * Drain queued Android input from the game/render thread and forward it to the
+     * optional LWJGL CallbackBridge. Call once per frame from the actual game loop.
+     * The bounded drain prevents a stalled frame from monopolizing the render thread.
+     */
+    static int pumpPendingEvents(CallbackSink sink, int pixelWidth, int pixelHeight, int maxEvents) {
+        if (sink == null || maxEvents <= 0) return 0;
+        int handled = 0;
+        while (handled < maxEvents) {
+            float[] event = NativeGameSurface.pollNativeInputEvent();
+            if (event == null) break;
+            dispatch(sink, event, pixelWidth, pixelHeight);
+            handled++;
+        }
+        return handled;
+    }
     static void dispatch(CallbackSink sink, float[] event, int pixelWidth, int pixelHeight) {
         if (sink == null || event == null || event.length < 5) return;
         int type = Math.round(event[0]);
