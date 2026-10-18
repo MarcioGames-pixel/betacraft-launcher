@@ -234,6 +234,15 @@ public final class MainActivity extends Activity {
         serversButton.setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, ServerListActivity.class)));
 
+        Button filesButton = new Button(this);
+        filesButton.setText("Browse launcher files");
+        styleButton(filesButton, false);
+        LinearLayout.LayoutParams filesParams = matchWrap();
+        filesParams.topMargin = dp(8);
+        root.addView(filesButton, filesParams);
+        filesButton.setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, LauncherFilesActivity.class)));
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
         progressBar.setVisibility(android.view.View.GONE);
