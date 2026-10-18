@@ -139,7 +139,6 @@ public final class MainActivity extends Activity {
 
     private void card(String title, String detail) {
         LinearLayout box = column();
-        box.setBackgroundTintList(null);
         box.setBackgroundColor(PANEL);
         pad(box, 16, 13, 16, 13);
         box.addView(text(title, 15, TEXT, true));
