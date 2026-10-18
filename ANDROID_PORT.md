@@ -28,6 +28,16 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Builds the pinned PojavLauncherTeam GL4ES compatibility library (`libGL.so`) for Android through CMake/FetchContent.
 - Adds a pinned Android port of LWJGL 2 using the MojoLauncher `lwjgl2-glfw` fork. The APK workflow builds its `lwjgl.jar` and ARM64 `liblwjgl64.so`, and packages the fork's Android `libglfw.so` and `libjawt.so`. The game JVM classpath places the Android LWJGL JAR before the selected version's desktop libraries so its GLFW-backed `Display` implementation can override the desktop implementation. The upstream LWJGL license is included in the APK assets.
 
+## BetaCraft legacy-launch research
+
+The upstream BetaCraft v1 source confirms that its legacy support is more than finding a class name:
+
+- Its wrapper creates an AWT/Swing game window, loads the game JARs with a dedicated class loader, constructs the version-specific client, and provides an AppletStub with parameters such as username, session ID, paid/offline state, server/port, and UUID.
+- It uses distinct launch wrappers for RubyDung/Pre-Classic, Classic 0.0.12a, Classic 0.0.15a, and general Classic/Indev/Infdev clients. The generic wrapper also handles addons and version-specific startup/shutdown behavior.
+- Pre-Classic has an extra bundled PreClassic.jar adapter and default map dimensions; it is not equivalent to passing a modern Main class arguments.
+- BetaCraft's public v1 project describes support from Pre-Classic through 1.5.2, including early Infdev/Indev, skins/sounds where supported, fixes for historical versions, and custom server compatibility. Those are desktop launcher features and do not automatically carry over to Android.
+
+This Android branch now classifies a repackaged MinecraftApplet as a generic classic launch method if no more-specific known signature matches. That improves recognition only. It intentionally continues to refuse launching these JARs until an Android-native game host and the rendering/input bridge replace the desktop AWT/Swing window. Do not mark applet versions as playable based on detection tests alone.
 ## Important limitations
 
 This remains an experimental Android port and is not yet verified as a working Minecraft launcher. The build now includes a real LWJGL 2 GLFW backend instead of only checking for absent libraries, but the fork's window creation and event callbacks must still be verified on a physical Android device. Legacy applet launch methods (including Classic, Indev and Infdev), custom launch-method adapters, complete game argument/library/assets resolution, and in-game touch mapping are not complete. The version catalogue can list all BetaCraft versions, but that does not mean every historical version can launch yet. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
