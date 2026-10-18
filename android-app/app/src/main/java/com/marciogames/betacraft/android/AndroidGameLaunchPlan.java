@@ -42,6 +42,14 @@ final class AndroidGameLaunchPlan {
 
     static AndroidGameLaunchPlan prepare(File dataRoot, File appNativeLibraryDir,
             String version, String username, String instanceId) throws Exception {
+        return prepare(dataRoot, appNativeLibraryDir, version, username, instanceId, 768);
+    }
+
+    static AndroidGameLaunchPlan prepare(File dataRoot, File appNativeLibraryDir,
+            String version, String username, String instanceId, int maxMemoryMb) throws Exception {
+        if (maxMemoryMb < 512 || maxMemoryMb > 4096) {
+            throw new IllegalArgumentException("Maximum Java memory must be between 512 and 4096 MB.");
+        }
         if (!safeVersion(version)) throw new IllegalArgumentException("Invalid version label.");
         String player = username == null ? "" : username.trim();
         if (!player.matches("[A-Za-z0-9_]{1,16}")) {
@@ -123,8 +131,10 @@ final class AndroidGameLaunchPlan {
                 + appNativeLibraryDir.getAbsolutePath();
 
         List<String> jvm = new ArrayList<>();
-        jvm.add("-Xms256M");
-        jvm.add("-Xmx768M");
+        // Keep the initial heap modest on Android and honour the saved maximum.
+        int initialMemoryMb = Math.min(256, Math.max(128, maxMemoryMb / 4));
+        jvm.add("-Xms" + initialMemoryMb + "M");
+        jvm.add("-Xmx" + maxMemoryMb + "M");
         jvm.add("-Djava.awt.headless=false");
         jvm.add("-Duser.home=" + dataRoot.getAbsolutePath());
         jvm.add("-Djava.io.tmpdir=" + new File(gameDir, "tmp").getAbsolutePath());
