@@ -140,6 +140,7 @@ final class AndroidLaunchPreflight {
                 return false;
             }
             lines.add("OK — detected built-in launch method: " + methodName);
+            lines.add("CAPABILITY — " + AndroidV1Compatibility.describe(methodName));
             return true;
         }
 
@@ -150,6 +151,7 @@ final class AndroidLaunchPreflight {
         }
         if (AndroidLaunchMethodDetector.isBuiltIn(methodName)) {
             lines.add("OK — built-in launch method: " + methodName + " (no separate method JAR required)");
+            lines.add("CAPABILITY — " + AndroidV1Compatibility.describe(methodName));
             return true;
         }
 
@@ -165,6 +167,7 @@ final class AndroidLaunchPreflight {
         }
         lines.add((ready ? "OK" : "MISSING") + " — external launch-method JAR "
                 + methodName + (ready ? "" : " (use Install launch method)"));
+        lines.add("CAPABILITY — " + AndroidV1Compatibility.describe(methodName));
         return ready;
     }
 
