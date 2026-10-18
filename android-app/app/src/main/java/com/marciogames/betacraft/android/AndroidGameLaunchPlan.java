@@ -61,7 +61,7 @@ final class AndroidGameLaunchPlan {
                     + ", but the Android launch adapter currently supports only the modern net.minecraft.client.main.Main entry point.");
         }
 
-        File instance = instanceId == null || instanceId.trim().isEmpty()
+        InstanceStorage.Instance instance = instanceId == null || instanceId.trim().isEmpty()
                 ? null : InstanceStorage.findById(dataRoot, instanceId);
         File gameDir = instance == null
                 ? new File(dataRoot, "game/" + version)
