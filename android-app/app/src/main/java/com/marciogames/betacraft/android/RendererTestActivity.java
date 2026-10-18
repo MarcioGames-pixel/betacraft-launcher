@@ -98,7 +98,7 @@ public final class RendererTestActivity extends Activity {
         root.addView(inputStatus, new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView note = new TextView(this);
-        note.setText("This verifies Android input → JNI queue and EGL presentation only. It does not launch Minecraft or feed LWJGL.");
+        note.setText("This verifies EGL, raw input and virtual-button events in the JNI queue. It does not launch Minecraft or connect the queue to a live LWJGL game loop.");
         note.setTextColor(Color.LTGRAY);
         note.setGravity(Gravity.CENTER);
         note.setPadding(0, dp(6), 0, dp(10));
