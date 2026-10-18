@@ -42,4 +42,4 @@ The port has useful groundwork, not full v1 parity. RubyDung and main-class clie
 
 - [GitHub Actions](https://github.com/MarcioGames-pixel/betacraft-launcher/actions)
 - [Android compatibility registry](https://github.com/MarcioGames-pixel/betacraft-launcher/blob/android-v1-port/android-app/app/src/main/java/com/marciogames/betacraft/android/AndroidV1Compatibility.java)
-- [Touch controls](https://github.com/MarcioGames-pixel/betacraft-launcher/blob/android-v1-port/android-app/src/main/java/com/marciogames/betacraft/android/AndroidTouchControls.java)
+- [Touch controls](https://github.com/MarcioGames-pixel/betacraft-launcher/blob/android-v1-port/android-app/app/src/main/java/com/marciogames/betacraft/android/AndroidTouchControls.java)
