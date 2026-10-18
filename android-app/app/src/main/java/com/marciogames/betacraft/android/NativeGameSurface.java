@@ -142,6 +142,14 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
         if (LIBRARY_AVAILABLE) nativeSendInput(INPUT_MOUSE, down ? 11 : 12, 1, 0.5f, 0.5f);
     }
 
+    /** Queue a normalized virtual cursor position for touch-look and diagnostics. */
+    static void sendVirtualCursor(float x, float y) {
+        if (!LIBRARY_AVAILABLE) return;
+        float normalizedX = Float.isNaN(x) || Float.isInfinite(x) ? 0f : Math.max(0f, Math.min(1f, x));
+        float normalizedY = Float.isNaN(y) || Float.isInfinite(y) ? 0f : Math.max(0f, Math.min(1f, y));
+        nativeSendInput(INPUT_MOUSE, 13, 0, normalizedX, normalizedY);
+    }
+
     private static int glfwKeyToAndroid(int key) {
         if (key >= 65 && key <= 90) return 29 + key - 65;
         if (key >= 48 && key <= 57) return 7 + key - 48;
