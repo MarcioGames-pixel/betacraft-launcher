@@ -59,7 +59,15 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
             float x = Math.max(0f, Math.min(1f, event.getX() / width));
             float y = Math.max(0f, Math.min(1f, event.getY() / height));
             if ((source & android.view.InputDevice.SOURCE_MOUSE) == android.view.InputDevice.SOURCE_MOUSE) {
-                nativeSendInput(INPUT_MOUSE, event.getActionMasked(), event.getButtonState(), x, y);
+                int mouseAction = event.getActionMasked();
+                if (mouseAction == MotionEvent.ACTION_SCROLL) {
+                    // For scroll events, x/y carry axis deltas rather than cursor coordinates.
+                    nativeSendInput(INPUT_MOUSE, mouseAction, event.getButtonState(),
+                            event.getAxisValue(MotionEvent.AXIS_HSCROLL),
+                            event.getAxisValue(MotionEvent.AXIS_VSCROLL));
+                } else {
+                    nativeSendInput(INPUT_MOUSE, mouseAction, event.getButtonState(), x, y);
+                }
                 return true;
             }
             int action = event.getActionMasked();
