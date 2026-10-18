@@ -45,6 +45,33 @@ public class AndroidLaunchPreflightTest {
     }
 
     @Test
+    public void requiresAppletAndAwtClassesForLegacyRuntime() throws Exception {
+        File root = new File(System.getProperty("java.io.tmpdir"),
+                "betacraft-applet-runtime-" + System.nanoTime());
+        assertTrue(root.mkdirs());
+        File rtJar = new File(root, "rt.jar");
+        try {
+            try (JarOutputStream output = new JarOutputStream(new FileOutputStream(rtJar))) {
+                String[] entries = {
+                        "java/applet/Applet.class",
+                        "java/applet/AppletStub.class",
+                        "java/applet/AppletContext.class",
+                        "java/awt/Component.class"
+                };
+                for (String entry : entries) {
+                    output.putNextEntry(new JarEntry(entry));
+                    output.write(new byte[]{0});
+                    output.closeEntry();
+                }
+            }
+            assertTrue(AndroidRuntimeInstaller.hasLegacyAppletClasses(root));
+        } finally {
+            rtJar.delete();
+            root.delete();
+        }
+    }
+
+    @Test
     public void acceptsOnlyAarch64ElfRuntimeLibraries() throws Exception {
         File file = File.createTempFile("betacraft-libjvm", ".so");
         try {
