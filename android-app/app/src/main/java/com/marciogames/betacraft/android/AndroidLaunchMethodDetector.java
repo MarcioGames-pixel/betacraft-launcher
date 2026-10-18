@@ -46,18 +46,24 @@ final class AndroidLaunchMethodDetector {
     }
 
     /**
-     * Returns the concrete applet entry class used by old Minecraft clients.
+     * Scans the entire JAR for an applet class by simple name, independent of package.
      * This is detection only: Android does not provide the desktop Applet
      * container, so callers must route it through an Android applet adapter.
      */
     static String detectAppletClass(File jar) throws IOException {
         if (jar == null || !jar.isFile()) return null;
         try (JarFile archive = new JarFile(jar)) {
-            if (has(archive, "net/minecraft/client/MinecraftApplet.class")) {
-                return "net.minecraft.client.MinecraftApplet";
-            }
-            if (has(archive, "com/mojang/minecraft/MinecraftApplet.class")) {
-                return "com.mojang.minecraft.MinecraftApplet";
+            java.util.Enumeration<java.util.jar.JarEntry> entries = archive.entries();
+            while (entries.hasMoreElements()) {
+                java.util.jar.JarEntry entry = entries.nextElement();
+                if (entry.isDirectory()) continue;
+                String path = entry.getName();
+                if (!path.endsWith(".class")) continue;
+                String simpleName = path.substring(path.lastIndexOf('/') + 1);
+                if ("MinecraftApplet.class".equals(simpleName)) {
+                    return path.substring(0, path.length() - ".class".length())
+                            .replace('/', '.');
+                }
             }
         }
         return null;
