@@ -41,9 +41,12 @@ final class AndroidLaunchPreflight {
         boolean launchBridgeReady = new File(nativeLibraryDir, "libbetacraft_runtime.so").isFile();
         lines.add((launchBridgeReady ? "OK" : "MISSING")
                 + " — native JVM bootstrap (libbetacraft_runtime.so)");
+        boolean gl4esReady = new File(nativeLibraryDir, "libGL.so").isFile();
+        lines.add((gl4esReady ? "OK" : "MISSING")
+                + " — GL4ES desktop OpenGL compatibility library (libGL.so; required for legacy LWJGL, but not a complete renderer)");
         boolean rendererReady = new File(nativeLibraryDir, "libbetacraft_renderer.so").isFile();
         lines.add((rendererReady ? "OK" : "MISSING")
-                + " — rendering/input bridge (libbetacraft_renderer.so)");
+                + " — Android game-surface/input bridge (libbetacraft_renderer.so)");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
                 && runtimeVersionReady && launchBridgeReady && rendererReady;
