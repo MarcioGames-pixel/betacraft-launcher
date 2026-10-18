@@ -25,6 +25,8 @@ typedef struct {
     pthread_t thread;
     atomic_int stopping;
     int started;
+    atomic_int surface_width;
+    atomic_int surface_height;
 } RenderState;
 
 static RenderState state;
@@ -71,6 +73,8 @@ static void *render_thread(void *opaque) {
     EGLint width = 0, height = 0;
     eglQuerySurface(display, surface, EGL_WIDTH, &width);
     eglQuerySurface(display, surface, EGL_HEIGHT, &height);
+    atomic_store(&s->surface_width, width);
+    atomic_store(&s->surface_height, height);
     glViewport(0, 0, width, height);
     LOGI("Android EGL test surface ready (%d x %d); this is not Minecraft rendering yet", width, height);
 
@@ -79,6 +83,19 @@ static void *render_thread(void *opaque) {
         static float phase = 0.0f;
         phase += 0.012f;
         if (phase > 1.0f) phase = 0.0f;
+        EGLint current_width = 0, current_height = 0;
+        if (eglQuerySurface(display, surface, EGL_WIDTH, &current_width)
+                && eglQuerySurface(display, surface, EGL_HEIGHT, &current_height)
+                && current_width > 0 && current_height > 0) {
+            width = current_width;
+            height = current_height;
+        }
+        int requested_width = atomic_load(&s->surface_width);
+        int requested_height = atomic_load(&s->surface_height);
+        if (requested_width > 0 && requested_height > 0) {
+            width = requested_width;
+            height = requested_height;
+        }
         glViewport(0, 0, width, height);
         glClearColor(0.055f + phase * 0.08f, 0.075f + phase * 0.04f, 0.11f + phase * 0.03f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
