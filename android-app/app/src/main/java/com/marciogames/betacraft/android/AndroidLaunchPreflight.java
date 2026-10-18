@@ -52,14 +52,14 @@ final class AndroidLaunchPreflight {
                 || containsNamedFile(librariesDir, "liblwjgl64.so");
         lines.add((lwjglReady ? "OK" : "MISSING")
                 + " — LWJGL JNI native library (required by the selected game version)");
-        lines.add("MISSING — Minecraft input bridge (keyboard, mouse and touch events are not connected to LWJGL)");
-        lines.add("MISSING — version-specific libraries/assets and complete game launch arguments are not yet assembled");
+        lines.add("PARTIAL — Android input capture and bounded JNI queue exist, but events are not yet consumed by an LWJGL Android backend");
+        lines.add("MISSING — complete version-specific dependency/asset resolution and a compatible LWJGL Android render loop");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
                 && runtimeVersionReady && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady;
         lines.add("");
         lines.add(ready
-                ? "Base runtime checks passed, but game input and complete launch assembly still need implementation and device testing."
+                ? "Base runtime checks passed, but LWJGL input consumption, full dependency resolution and device testing are still required."
                 : "NOT READY TO LAUNCH: one or more required Android game-engine components are missing.");
         return join(lines);
     }
