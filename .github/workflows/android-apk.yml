@@ -13,8 +13,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: betacraft-android-apk-${{ github.ref }}
-  cancel-in-progress: true
+  # Do not let rapid incremental commits cancel the only build that validates native CMake changes.
+  group: betacraft-android-apk-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
