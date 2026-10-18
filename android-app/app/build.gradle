@@ -53,6 +53,21 @@ android {
 
     ndkVersion '27.2.12479018'
 
+    // MojoExec and the Android GLFW target both expose libglfw.so. The APK
+    // must contain a single copy for each ABI; the source-built CMake target is
+    // kept as the native build output and Gradle selects one packaged copy.
+    packaging {
+        jniLibs {
+            pickFirsts += [
+                'lib/arm64-v8a/libglfw.so',
+                'lib/armeabi-v7a/libglfw.so',
+                'lib/x86/libglfw.so',
+                'lib/x86_64/libglfw.so'
+            ]
+        }
+    }
+
+
     buildTypes {
         debug {
             applicationIdSuffix '.debug'
