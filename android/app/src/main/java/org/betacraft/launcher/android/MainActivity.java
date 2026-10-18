@@ -32,6 +32,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.security.MessageDigest;
 import java.util.Properties;
+import java.util.jar.JarFile;
+import java.util.jar.JarEntry;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -285,16 +287,7 @@ public final class MainActivity extends Activity {
         content.addView(button("Choose version", false, v -> showTab("Versions")),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 8);
-        content.addView(button("Launch game", true, v -> {
-            File java = runtimeJava();
-            String message = java.isFile()
-                    ? "A Java runtime is present at " + java.getAbsolutePath()
-                      + ", but the Android Minecraft launch bridge is not complete yet. This build does not yet configure version-specific classpaths, LWJGL/GL4ES, native libraries, audio or touch input. The game was NOT started."
-                    : "No Android Java runtime is installed. Open Settings, import a Java 8 ARM64 runtime ZIP built for Android, and run Test Java runtime. Even after Java works, the LWJGL/GL4ES renderer and version-specific launch bridge are still required. The game was NOT started.";
-            new AlertDialog.Builder(this).setTitle("Launch requirements").setMessage(message)
-                    .setPositiveButton("Open Settings", (d, w) -> showTab("Settings"))
-                    .setNegativeButton("Close", null).show();
-        }),
+        content.addView(button("Check launch compatibility", true, v -> inspectSelectedVersion()),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 18);
         section("Launcher status", null);
@@ -481,6 +474,81 @@ public final class MainActivity extends Activity {
             setInstanceVersion(activeInstance, selectedVersion);
             showTab("Settings");
         }), new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private void inspectSelectedVersion() {
+        catalogExecutor.execute(() -> {
+            StringBuilder report = new StringBuilder();
+            boolean ready = true;
+            File versionsRoot = new File(getFilesDir(), "betacraft/versions");
+            File metadata = new File(new File(versionsRoot, "jsons"), selectedVersion + ".info");
+            File jar = new File(versionsRoot, selectedVersion + ".jar");
+            File java = runtimeJava();
+            report.append("Version: ").append(selectedVersion).append("\n");
+            report.append("Metadata: ").append(metadata.isFile() ? "present" : "missing").append("\n");
+            report.append("JAR: ").append(jar.isFile() ? "present (" + jar.length() + " bytes)" : "missing").append("\n");
+            report.append("Java executable: ").append(java.isFile() ? "present" : "missing").append("\n\n");
+            Properties props = new Properties();
+            if (!metadata.isFile()) {
+                ready = false;
+                report.append("Download the selected version's metadata and JAR from the Versions tab.\n");
+            } else {
+                try (InputStream in = new FileInputStream(metadata)) {
+                    props.load(in);
+                } catch (Exception ex) {
+                    ready = false;
+                    report.append("Cannot read metadata: ").append(ex.getMessage()).append("\n");
+                }
+            }
+            String method = props.getProperty("launch-method", "").trim();
+            String expectedSha = props.getProperty("sha1", "").trim();
+            report.append("BetaCraft launch method: ").append(method.isEmpty() ? "(not declared; class detection needed)" : method).append("\n");
+            if (jar.isFile()) {
+                try {
+                    MessageDigest sha = MessageDigest.getInstance("SHA-1");
+                    try (InputStream in = new FileInputStream(jar)) {
+                        byte[] buf = new byte[16384]; int n;
+                        while ((n = in.read(buf)) != -1) sha.update(buf, 0, n);
+                    }
+                    String actual = toHex(sha.digest());
+                    report.append("JAR SHA-1: ").append(actual).append("\n");
+                    if (!expectedSha.isEmpty() && !expectedSha.equalsIgnoreCase(actual)) {
+                        ready = false;
+                        report.append("ERROR: SHA-1 does not match the official metadata. Re-download this version.\n");
+                    }
+                    try (JarFile archive = new JarFile(jar)) {
+                        String[] mainCandidates = {
+                                "net/minecraft/client/main/Main.class",
+                                "com/mojang/minecraft/MinecraftApplet.class",
+                                "net/minecraft/client/Minecraft.class",
+                                "com/mojang/rubydung/RubyDung.class",
+                                "M.class"
+                        };
+                        boolean found = false;
+                        for (String candidate : mainCandidates) if (archive.getJarEntry(candidate) != null) {
+                            report.append("Detected class: ").append(candidate.replace('/', '.')).append("\n");
+                            found = true;
+                        }
+                        if (!found) report.append("No known vanilla entry class found; a custom wrapper may be required.\n");
+                    }
+                } catch (Exception ex) {
+                    ready = false;
+                    report.append("JAR inspection failed: ").append(ex.getMessage()).append("\n");
+                }
+            } else {
+                ready = false;
+            }
+            if (!java.isFile()) ready = false;
+            report.append("\nPreflight: ").append(ready ? "files look structurally valid" : "requirements missing or failed").append("\n");
+            report.append("Playable launch: NOT YET AVAILABLE. This preview still lacks the Android game-process bridge, version-specific dependencies/assets and LWJGL/GL4ES rendering/input integration.");
+            final String result = report.toString();
+            final boolean passed = ready;
+            runOnUiThread(() -> new AlertDialog.Builder(this)
+                    .setTitle(passed ? "Launch preflight" : "Launch preflight: issues found")
+                    .setMessage(result)
+                    .setPositiveButton("OK", null)
+                    .show());
+        });
     }
 
     private File runtimeRoot() {
