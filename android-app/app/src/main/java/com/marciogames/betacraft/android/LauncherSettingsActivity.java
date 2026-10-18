@@ -34,7 +34,7 @@ public final class LauncherSettingsActivity extends Activity {
         root.addView(title);
 
         TextView explanation = new TextView(this);
-        explanation.setText("These preferences are saved on this device. RAM and graphics choices are not passed to Minecraft until the game launch pipeline is integrated.");
+        explanation.setText("These preferences are saved on this device. The maximum RAM setting is passed to supported Java launch plans. Graphics preference remains informational until the Android renderer is fully integrated.");
         explanation.setTextColor(Color.LTGRAY);
         explanation.setPadding(0, dp(8), 0, dp(16));
         root.addView(explanation);
@@ -67,7 +67,7 @@ public final class LauncherSettingsActivity extends Activity {
         gl.setOnCheckedChangeListener((button, checked) -> prefs.edit().putBoolean(KEY_GL4ES, checked).apply());
 
         TextView note = new TextView(this);
-        note.setText("Account login, skins, modpack installers, news feeds, server lists and full graphics/input settings still need their services and game-side integrations.");
+        note.setText("Microsoft sign-in, skins, modpack installers, news feeds, live multiplayer status and complete graphics/input/audio integration are not implemented yet. The GL4ES checkbox is a saved preference only; it does not guarantee that a legacy game renders.");
         note.setTextColor(Color.LTGRAY);
         note.setPadding(0, dp(16), 0, dp(16));
         root.addView(note);
