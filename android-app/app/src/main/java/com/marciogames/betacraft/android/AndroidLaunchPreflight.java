@@ -25,6 +25,7 @@ final class AndroidLaunchPreflight {
         boolean jarReady = checkJar(dataRoot, version, lines);
         boolean metadataReady = checkMetadata(dataRoot, version, lines);
         boolean launchMethodReady = checkLaunchMethod(dataRoot, version, lines);
+        boolean androidAdapterReady = checkAndroidAdapter(dataRoot, version, lines);
         boolean abiReady = checkAbi(supportedAbis, lines);
         int requiredJava = recommendedJavaMajor(version);
         lines.add("Recommended runtime for " + version + ": Java " + requiredJava);
@@ -55,8 +56,9 @@ final class AndroidLaunchPreflight {
         lines.add("PARTIAL — Minecraft input bridge: Android input capture and bounded JNI queue exist, but events are not yet consumed by an LWJGL Android backend");
         lines.add("MISSING — complete version-specific dependency/asset resolution and a compatible LWJGL Android render loop");
 
-        boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
-                && runtimeVersionReady && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady;
+        boolean ready = jarReady && metadataReady && launchMethodReady && androidAdapterReady
+                && abiReady && jvmReady && jliReady && runtimeVersionReady
+                && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady;
         lines.add("");
         lines.add(ready
                 ? "Base runtime checks passed, but LWJGL input consumption, full dependency resolution and device testing are still required."
@@ -171,6 +173,35 @@ final class AndroidLaunchPreflight {
         return ready;
     }
 
+    private static boolean checkAndroidAdapter(File dataRoot, String version, List<String> lines) {
+        File info = new File(new File(new File(dataRoot, "versions"), "jsons"), version + ".info");
+        File jar = new File(new File(dataRoot, "versions"), version + ".jar");
+        String method = null;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(info), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int separator = line.indexOf(':');
+                if (separator > 0 && "launch-method".equals(line.substring(0, separator).trim())) {
+                    method = line.substring(separator + 1).trim();
+                    break;
+                }
+            }
+        } catch (Exception ignored) { }
+        if (method == null || method.isEmpty()) {
+            try { method = AndroidLaunchMethodDetector.detect(jar); }
+            catch (Exception ignored) { }
+        }
+        if (method == null) {
+            lines.add("MISSING - no Android launch adapter can be selected for this JAR");
+            return false;
+        }
+        AndroidV1Compatibility.Entry entry = AndroidV1Compatibility.forMethod(method);
+        boolean supported = entry != null && entry.androidLaunchImplemented;
+        lines.add((supported ? "PARTIAL" : "BLOCKED") + " - Android launch adapter: "
+                + AndroidV1Compatibility.describe(method));
+        return supported;
+    }
     private static boolean checkAbi(String[] supportedAbis, List<String> lines) {
         if (supportedAbis == null || supportedAbis.length == 0) {
             lines.add("MISSING — Android architecture was not detected");
