@@ -3,6 +3,7 @@ package com.marciogames.betacraft.android;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import android.util.Log;
 
@@ -47,7 +48,7 @@ final class AndroidJvmBridge {
         Process process = builder.start();
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (output.length() < 12000) output.append(line).append('\n');
