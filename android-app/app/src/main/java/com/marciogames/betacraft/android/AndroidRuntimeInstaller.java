@@ -5,6 +5,8 @@ import android.system.Os;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -14,6 +16,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
@@ -28,11 +32,12 @@ final class AndroidRuntimeInstaller {
             return base + "jre8-40df388/jre8-arm64-20220811-release.tar.xz";
         }
         if (major == 17) {
-            return base + "jre17-ca01427/jre17-arm64-20220817-release.tar.xz";
+            return base + "jre17-ec28559/jre17-arm64-20210825-release.tar.xz";
         }
         throw new IllegalArgumentException("Only Java 8 and Java 17 are supported.");
     }
     private static final long MAX_ARCHIVE_BYTES = 100L * 1024L * 1024L;
+    private static final long MAX_ARTIFACT_UNPACKED_BYTES = 150L * 1024L * 1024L;
     private static final long MAX_UNPACKED_BYTES = 700L * 1024L * 1024L;
     private static final int MAX_ENTRIES = 50000;
 
@@ -52,16 +57,23 @@ final class AndroidRuntimeInstaller {
         String label = "jre" + major;
         File archive = new File(runtimeDirectory, label + "-arm64.tar.xz.part");
         File staged = new File(runtimeDirectory, "staging-" + label);
+        File java8Package = new File(runtimeDirectory, "jre8-pojav-package");
         File active = new File(runtimeDirectory, "java" + major);
         File backup = new File(runtimeDirectory, "java" + major + "-old");
 
         deleteTree(staged);
         deleteTree(archive);
+        deleteTree(java8Package);
         download(archive, major, progress);
-        extract(archive, staged, major, progress);
+        if (major == 8) {
+            extractJava8Artifact(archive, staged, progress);
+        } else {
+            extract(archive, staged, major, progress);
+        }
         if (!hasCompatibleRuntime(staged, major)) {
             deleteTree(staged);
             deleteTree(archive);
+            deleteTree(java8Package);
             throw new IllegalStateException("The downloaded Java " + major + " package is incomplete or is not a 64-bit ARM (AArch64) Android runtime. Expected libjvm.so and libjli.so.");
         }
 
@@ -81,7 +93,7 @@ final class AndroidRuntimeInstaller {
     }
 
     private static void download(File destination, int major, Progress progress) throws Exception {
-        URL current = new URL(sourceUrl(major));
+        URL current = new URL(major == 8 ? resolveJava8ArtifactUrl() : sourceUrl(major));
         HttpURLConnection connection = null;
         try {
             for (int redirects = 0; redirects <= 5; redirects++) {
@@ -89,8 +101,11 @@ final class AndroidRuntimeInstaller {
                     throw new IllegalStateException("Runtime downloads require HTTPS.");
                 }
                 String host = current.getHost().toLowerCase(java.util.Locale.ROOT);
-                if (!(host.equals("github.com") || host.equals("release-assets.githubusercontent.com")
-                        || host.equals("objects.githubusercontent.com"))) {
+                if (!(host.equals("api.github.com") || host.equals("github.com")
+                        || host.equals("release-assets.githubusercontent.com")
+                        || host.equals("objects.githubusercontent.com")
+                        || host.endsWith(".blob.core.windows.net")
+                        || host.equals("results-receiver.actions.githubusercontent.com"))) {
                     throw new IllegalStateException("Untrusted download host: " + host);
                 }
                 connection = (HttpURLConnection) current.openConnection();
@@ -140,6 +155,121 @@ final class AndroidRuntimeInstaller {
         } finally {
             if (connection != null) connection.disconnect();
         }
+    }
+
+ 
+    /**
+     * Java 8's commonly linked "arm64" release is an iOS runtime, not an Android
+     * runtime. Resolve the current Android AArch64 package from Amethyst's public
+     * OpenJDK CI artifact instead, and validate the ELF architecture before install.
+     */
+    private static String resolveJava8ArtifactUrl() throws Exception {
+        JSONObject runs = readJson("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/runs?branch=buildjre8&status=success&per_page=1");
+        JSONArray workflowRuns = runs.optJSONArray("workflow_runs");
+        if (workflowRuns == null || workflowRuns.length() == 0) {
+            throw new IllegalStateException("No successful Android Java 8 ARM64 build was found.");
+        }
+        long runId = workflowRuns.getJSONObject(0).getLong("id");
+        JSONObject artifacts = readJson("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/runs/"
+                + runId + "/artifacts?per_page=100");
+        JSONArray list = artifacts.optJSONArray("artifacts");
+        if (list != null) {
+            for (int index = 0; index < list.length(); index++) {
+                JSONObject item = list.getJSONObject(index);
+                if ("jre8-pojav".equals(item.optString("name"))
+                        && !item.optBoolean("expired", true)) {
+                    String url = item.optString("archive_download_url", "");
+                    if (url.startsWith("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/artifacts/")) {
+                        return url + "/zip";
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("The latest Android Java 8 ARM64 artifact has expired or is unavailable.");
+    }
+
+    private static JSONObject readJson(String address) throws Exception {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(address);
+            if (!"https".equalsIgnoreCase(url.getProtocol())
+                    || !"api.github.com".equalsIgnoreCase(url.getHost())) {
+                throw new IllegalStateException("Untrusted runtime metadata URL.");
+            }
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(20000);
+            connection.setRequestProperty("Accept", "application/vnd.github+json");
+            connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+            connection.setRequestProperty("User-Agent", "BetaCraft-Android-Port/0.5");
+            int code = connection.getResponseCode();
+            if (code < 200 || code >= 300) {
+                throw new IllegalStateException("Runtime metadata request returned HTTP " + code);
+            }
+            try (InputStream input = new BufferedInputStream(connection.getInputStream())) {
+                java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[8192];
+                int n;
+                while ((n = input.read(buffer)) != -1) {
+                    if (output.size() + n > 5 * 1024 * 1024) {
+                        throw new IllegalStateException("Runtime metadata response is too large.");
+                    }
+                    output.write(buffer, 0, n);
+                }
+                return new JSONObject(new String(output.toByteArray(), StandardCharsets.UTF_8));
+            }
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private static void extractJava8Artifact(File artifactZip, File destination, Progress progress)
+            throws Exception {
+        File packageDir = new File(artifactZip.getParentFile(), "jre8-pojav-package");
+        deleteTree(packageDir);
+        if (!packageDir.mkdirs() && !packageDir.isDirectory()) {
+            throw new IllegalStateException("Could not create Java 8 package staging folder.");
+        }
+        long expanded = 0;
+        try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(new FileInputStream(artifactZip)))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[32768];
+            while ((entry = zip.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                if (name.startsWith("/") || name.contains("\\\\") || name.contains("../")) {
+                    throw new IllegalStateException("Unsafe path in Java 8 artifact.");
+                }
+                String leaf = name.substring(name.lastIndexOf('/') + 1);
+                if (!("universal.tar.xz".equals(leaf) || "bin-arm64.tar.xz".equals(leaf)
+                        || "version".equals(leaf))) {
+                    continue;
+                }
+                File output = new File(packageDir, leaf);
+                try (FileOutputStream out = new FileOutputStream(output)) {
+                    int n;
+                    while ((n = zip.read(buffer)) != -1) {
+                        expanded += n;
+                        if (expanded > MAX_ARTIFACT_UNPACKED_BYTES) {
+                            throw new IllegalStateException("Java 8 artifact exceeds the extraction size limit.");
+                        }
+                        out.write(buffer, 0, n);
+                    }
+                    out.getFD().sync();
+                }
+                zip.closeEntry();
+            }
+        }
+        File universal = new File(packageDir, "universal.tar.xz");
+        File arm64 = new File(packageDir, "bin-arm64.tar.xz");
+        if (!universal.isFile() || !arm64.isFile()
+                || universal.length() < 1024 || arm64.length() < 1024) {
+            throw new IllegalStateException("Android Java 8 package is missing universal.tar.xz or bin-arm64.tar.xz.");
+        }
+        if (progress != null) progress.update("Extracting Android Java 8 ARM64 runtime…", 0, 0);
+        extract(universal, destination, 8, progress);
+        extract(arm64, destination, 8, progress);
+        deleteTree(packageDir);
     }
 
     private static void extract(File archive, File destination, int major, Progress progress) throws Exception {
