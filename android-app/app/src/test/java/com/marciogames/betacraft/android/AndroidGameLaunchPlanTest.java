@@ -118,6 +118,8 @@ public class AndroidGameLaunchPlanTest {
             assertEquals("854", plan.parameters.get("width"));
             assertEquals("480", plan.parameters.get("height"));
             assertEquals(game.getCanonicalFile(), plan.gameDirectory.getCanonicalFile());
+            assertEquals("Applet codeBase must point to the JAR directory",
+                    jar.getParentFile().toURI().toURL(), plan.codeBase);
         } finally {
             deleteTree(temp);
         }
