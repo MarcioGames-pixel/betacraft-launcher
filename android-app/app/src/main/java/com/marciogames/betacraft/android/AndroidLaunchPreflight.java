@@ -80,23 +80,22 @@ final class AndroidLaunchPreflight {
                 + " — AWT compatibility native library (libjawt.so)");
         lines.add((compatJarReady ? "OK" : "MISSING")
                 + " — bundled Android LWJGL compatibility JAR");
-        lines.add("PARTIAL — Android input queue and touch controls exist, but no live Minecraft LWJGL event loop is consuming the queue yet");
-        // Keep this gate closed until LWJGL creates its context on the Android SurfaceView
-        // and the real Minecraft render/input loop owns that context. The EGL smoke test above
-        // runs on a separate native thread and must never be treated as game rendering.
-        boolean gameRendererReady = false;
-        lines.add("MISSING — live Minecraft renderer: LWJGL context is not attached to the Android SurfaceView");
-        lines.add("PARTIAL — Pojav-compatible Java/JNI GLFW surface adapter is present, but it is not yet connected to the Minecraft JVM; the LWJGL2 Display/GLContext adapter is still missing");
-        lines.add("MISSING — version-specific dependency/asset resolution and live input event pump");
+        boolean glfwSurfaceComponentsReady = lwjglReady && glfwReady && jawtReady && compatJarReady;
+        lines.add((glfwSurfaceComponentsReady ? "OK" : "MISSING")
+                + " — LWJGL2/GLFW Android surface components are packaged");
+        lines.add("OK — GameActivity creates the Android GLFW surface before starting the Minecraft JVM");
+        lines.add("OK — touch controls and hardware input forward events to the LWJGL2 GLFW native queue");
+        lines.add("NOT DEVICE-VERIFIED — actual Minecraft frames, GL context ownership and per-version input still need testing on a real Android device");
+        lines.add("PARTIAL — version-specific libraries/assets are not fully resolved automatically for every BetaCraft-era version");
 
-        boolean ready = gameRendererReady && jarReady && metadataReady && launchMethodReady && androidAdapterReady
+        boolean ready = glfwSurfaceComponentsReady && jarReady && metadataReady && launchMethodReady && androidAdapterReady
                 && abiReady && jvmReady && jliReady && runtimeVersionReady
                 && appletClassesReady && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady
                 && glfwReady && jawtReady && compatJarReady;
         lines.add("");
         lines.add(ready
                 ? "READY — required game runtime and renderer checks passed."
-                : "NOT READY TO LAUNCH: real Minecraft rendering/input integration is incomplete or required components are missing.");
+                : "NOT READY: selected game files or required Android runtime components are missing. A READY report means files exist, not that every Minecraft version has been device-tested.");
         return join(lines);
     }
 
