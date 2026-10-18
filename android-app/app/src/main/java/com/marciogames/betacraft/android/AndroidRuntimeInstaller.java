@@ -29,7 +29,8 @@ final class AndroidRuntimeInstaller {
     private static String sourceUrl(int major) {
         String base = "https://github.com/PojavLauncherTeam/android-openjdk-build-multiarch/releases/download/";
         if (major == 8) {
-            return base + "jre8-40df388/jre8-arm64-20220811-release.tar.xz";
+            throw new IllegalArgumentException(
+                    "Java 8 must use the Android ARM64 CI package, never the similarly named iOS runtime.");
         }
         if (major == 17) {
             return base + "jre17-ec28559/jre17-arm64-20210825-release.tar.xz";
