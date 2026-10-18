@@ -86,7 +86,7 @@ final class AndroidLaunchPreflight {
         // runs on a separate native thread and must never be treated as game rendering.
         boolean gameRendererReady = false;
         lines.add("MISSING — live Minecraft renderer: LWJGL context is not attached to the Android SurfaceView");
-        lines.add("MISSING — Pojav-style Java/JNI GLFW surface bridge and LWJGLX Display/GLContext adapter are not yet wired to the game JVM");
+        lines.add("PARTIAL — Pojav-compatible Java/JNI GLFW surface adapter is present, but it is not yet connected to the Minecraft JVM; the LWJGL2 Display/GLContext adapter is still missing");
         lines.add("MISSING — version-specific dependency/asset resolution and live input event pump");
 
         boolean ready = gameRendererReady && jarReady && metadataReady && launchMethodReady && androidAdapterReady
