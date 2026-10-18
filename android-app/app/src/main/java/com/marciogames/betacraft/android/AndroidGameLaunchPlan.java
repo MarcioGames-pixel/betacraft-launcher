@@ -85,6 +85,10 @@ final class AndroidGameLaunchPlan {
         File libraries = new File(dataRoot, "libraries");
         List<File> jars = new ArrayList<>();
         collectJars(libraries, jars, 0);
+        // These compatibility jars must be visible to the launched game JVM,
+        // not merely to the Android application's class loader.
+        File compatibility = new File(dataRoot, "launcher/components/lwjgl3");
+        collectJars(compatibility, jars, 0);
         Collections.sort(jars, Comparator.comparing(File::getAbsolutePath));
         StringBuilder cp = new StringBuilder(versionJar.getAbsolutePath());
         for (File jar : jars) {
@@ -107,6 +111,10 @@ final class AndroidGameLaunchPlan {
         jvm.add("-Dfile.encoding=UTF-8");
         jvm.add("-Djava.library.path=" + nativePath);
         jvm.add("-Dorg.lwjgl.librarypath=" + nativePath);
+        jvm.add("-Dorg.lwjgl.opengl.libname=libGL.so");
+        jvm.add("-Dbetacraft.android=true");
+        jvm.add("-Dbetacraft.lwjgl.compat=" + new File(dataRoot,
+                "launcher/components/lwjgl3").getAbsolutePath());
         jvm.add("-Dorg.lwjgl.opengl.Display.allowSoftwareOpenGL=true");
         jvm.add("-Dnet.java.games.input.librarypath=" + nativePath);
         jvm.add("-cp");
@@ -151,7 +159,7 @@ final class AndroidGameLaunchPlan {
                 + "Runtime: " + javaHome.getAbsolutePath() + "\n"
                 + "Game directory: " + gameDirectory.getAbsolutePath() + "\n"
                 + "Classpath entries: " + (classPath.isEmpty() ? 0 : classPath.split(java.util.regex.Pattern.quote(File.pathSeparator), -1).length)
-                + "\n\nThis is only the Java launch plan. The Android LWJGL 2 native/input backend and renderer are still required before Minecraft can play.";
+                + "\n\nThe launched JVM classpath includes any installed launcher/components/lwjgl3 compatibility jars. A matching Android LWJGL backend and game-owned EGL surface are still required before Minecraft can play.";
     }
 
     private static String findMainClass(File jar) throws IOException {
