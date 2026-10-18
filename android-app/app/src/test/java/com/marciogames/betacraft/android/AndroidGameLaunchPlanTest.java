@@ -156,7 +156,7 @@ public class AndroidGameLaunchPlanTest {
             deleteTree(temp);
         }
     }
-    @Test public void rejectsAppletOnlyVersionInsteadOfPassingWrongArguments() throws Exception {
+    @Test public void routesAppletOnlyVersionThroughJvmLifecycleHost() throws Exception {
         File temp = Files.createTempDirectory("betacraft-applet-launch").toFile();
         try {
             File data = new File(temp, "data");
@@ -166,13 +166,28 @@ public class AndroidGameLaunchPlanTest {
             createJar(appletJar, null, "net/minecraft/client/MinecraftApplet.class");
             assertEquals("net.minecraft.client.MinecraftApplet",
                     AndroidLaunchMethodDetector.detectAppletClass(appletJar));
-            try {
-                AndroidGameLaunchPlan.prepare(data, new File(temp, "native"),
-                        "1.5.2", "Player", "");
-                fail("Applet-only versions must not be launched as a modern Main entry point.");
-            } catch (IllegalStateException expected) {
-                assertTrue(expected.getMessage().contains("applet"));
-            }
+
+            File hostJar = new File(data,
+                    "launcher/components/legacy-applet-host/legacy-applet-host.jar");
+            hostJar.getParentFile().mkdirs();
+            createJar(hostJar, null,
+                    "com/marciogames/betacraft/runtime/LegacyAppletMain.class");
+            File runtime = new File(data, "runtime/java8");
+            assertTrue(runtime.mkdirs());
+            write(new File(runtime, "release"), "JAVA_VERSION=" + "\\"1.8.0\\"\n");
+            write(new File(runtime, "libjli.so"), "test");
+            write(new File(runtime, "libjvm.so"), "test");
+            File nativeDir = new File(temp, "native");
+            assertTrue(nativeDir.mkdirs());
+
+            AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(
+                    data, nativeDir, "1.5.2", "Player", "");
+            assertEquals(AndroidGameLaunchPlan.LEGACY_APPLET_HOST_MAIN, plan.mainClass);
+            assertTrue(plan.gameArguments.contains("--appletClass"));
+            assertTrue(plan.gameArguments.contains("net.minecraft.client.MinecraftApplet"));
+            assertTrue(plan.gameArguments.contains("--codeBase"));
+            assertTrue(plan.classPath.indexOf(hostJar.getAbsolutePath())
+                    < plan.classPath.indexOf(appletJar.getAbsolutePath()));
         } finally {
             deleteTree(temp);
         }
