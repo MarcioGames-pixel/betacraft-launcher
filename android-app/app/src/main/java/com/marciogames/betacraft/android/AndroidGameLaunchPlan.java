@@ -18,6 +18,8 @@ import java.util.jar.Manifest;
  * until their applet adapters are ported to Android.
  */
 final class AndroidGameLaunchPlan {
+    static final String LEGACY_APPLET_HOST_MAIN =
+            "com.marciogames.betacraft.runtime.LegacyAppletMain";
     final String version;
     final String mainClass;
     final File gameDirectory;
@@ -62,24 +64,26 @@ final class AndroidGameLaunchPlan {
         }
 
         String mainClass = findMainClass(versionJar);
+        String appletClass = null;
         if (mainClass == null) {
-            String appletClass = AndroidLaunchMethodDetector.detectAppletClass(versionJar);
+            appletClass = AndroidLaunchMethodDetector.detectAppletClass(versionJar);
             if (appletClass != null) {
-                throw new IllegalStateException("Detected legacy applet entry point "
-                        + appletClass + ". This Minecraft version requires the Android Applet adapter "
-                        + "to create the applet lifecycle and parameters; desktop applets cannot be "
-                        + "started by calling java.applet.Applet as a main class. The version is "
-                        + "recognized, but its applet adapter is not yet implemented.");
+                // The helper is a real JVM main class that constructs the legacy
+                // AppletStub/AppletContext contract. Rendering still needs the
+                // separate Android LWJGL/SurfaceView backend.
+                mainClass = LEGACY_APPLET_HOST_MAIN;
+            } else {
+                String method = AndroidLaunchMethodDetector.detect(versionJar);
+                String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
+                throw new IllegalStateException("This version uses " + category
+                        + " without a supported standalone Java entry point. Custom desktop launch methods still need Android-specific adapters; the launcher will not pass them incorrect arguments.");
             }
-            String method = AndroidLaunchMethodDetector.detect(versionJar);
-            String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
-            throw new IllegalStateException("This version uses " + category
-                    + " without a supported standalone Java entry point. Classic/Indev/Infdev applets and custom desktop launch methods still need Android-specific adapters; the launcher will not pass them incorrect arguments.");
         }
         boolean modernMain = "net.minecraft.client.main.Main".equals(mainClass);
         boolean caveGame = "com.mojang.rubydung.RubyDung".equals(mainClass)
                 || "com.mojang.minecraft.RubyDung".equals(mainClass);
-        if (!modernMain && !caveGame) {
+        boolean legacyApplet = LEGACY_APPLET_HOST_MAIN.equals(mainClass);
+        if (!modernMain && !caveGame && !legacyApplet) {
             throw new IllegalStateException("Detected entry point " + mainClass
                     + ", which does not yet have an Android launch adapter.");
         }
@@ -116,6 +120,14 @@ final class AndroidGameLaunchPlan {
         Collections.sort(compatibilityJars, Comparator.comparing(File::getAbsolutePath));
         Collections.sort(jars, Comparator.comparing(File::getAbsolutePath));
         StringBuilder cp = new StringBuilder();
+        if (legacyApplet) {
+            File appletHostJar = new File(dataRoot,
+                    "launcher/components/legacy-applet-host/legacy-applet-host.jar");
+            if (!appletHostJar.isFile() || appletHostJar.length() == 0) {
+                throw new IllegalStateException("The bundled JVM legacy applet host is missing. Rebuild the APK with the legacy applet host task enabled.");
+            }
+            cp.append(appletHostJar.getAbsolutePath()).append(File.pathSeparator);
+        }
         for (File jar : compatibilityJars) {
             cp.append(jar.getAbsolutePath()).append(File.pathSeparator);
         }
@@ -167,10 +179,22 @@ final class AndroidGameLaunchPlan {
             args.add("--versionType"); args.add("BetaCraft Android");
             args.add("--width"); args.add("854");
             args.add("--height"); args.add("480");
-        } else {
+        } else if (caveGame) {
             // Cave Game/RubyDung is a standalone LWJGL client and does not
             // accept the modern Minecraft --username/--gameDir argument set.
             jvm.add("-Dbetacraft.gameDirectory=" + gameDir.getAbsolutePath());
+        } else {
+            AndroidAppletLaunchAdapter.Plan appletPlan = AndroidAppletLaunchAdapter.prepare(
+                    versionJar, gameDir, version, player, 854, 480);
+            args.add("--appletClass"); args.add(appletPlan.appletClass);
+            args.add("--codeBase"); args.add(appletPlan.codeBase.toExternalForm());
+            args.add("--documentBase"); args.add(appletPlan.documentBase.toExternalForm());
+            args.add("--width"); args.add(Integer.toString(appletPlan.width));
+            args.add("--height"); args.add(Integer.toString(appletPlan.height));
+            for (java.util.Map.Entry<String, String> parameter : appletPlan.parameters.entrySet()) {
+                args.add("--param." + parameter.getKey());
+                args.add(parameter.getValue());
+            }
         }
 
         File tmp = new File(gameDir, "tmp");
