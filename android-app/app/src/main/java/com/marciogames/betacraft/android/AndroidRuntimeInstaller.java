@@ -29,8 +29,9 @@ final class AndroidRuntimeInstaller {
     private static String sourceUrl(int major) {
         String base = "https://github.com/PojavLauncherTeam/android-openjdk-build-multiarch/releases/download/";
         if (major == 8) {
-            throw new IllegalArgumentException(
-                    "Java 8 must use the Android ARM64 CI package, never the similarly named iOS runtime.");
+            // Public release asset: Actions artifact_download_url requires an
+            // authenticated GitHub token and returns HTTP 401 in the app.
+            return "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre8/jre8-android-arm64.tar.xz";
         }
         if (major == 17) {
             return base + "jre17-ec28559/jre17-arm64-20210825-release.tar.xz";
@@ -66,12 +67,11 @@ final class AndroidRuntimeInstaller {
         deleteTree(archive);
         deleteTree(java8Package);
         download(archive, major, progress);
-        if (major == 8) {
-            extractJava8Artifact(archive, staged, progress);
-            unpackJava8PackedJars(staged);
-        } else {
-            extract(archive, staged, major, progress);
-        }
+        // Both Java versions are published as public .tar.xz release assets.
+        // Do not download GitHub Actions artifacts: those URLs require auth and
+        // return HTTP 401 to anonymous launcher users.
+        extract(archive, staged, major, progress);
+        if (major == 8) unpackJava8PackedJars(staged);
         if (!hasCompatibleRuntime(staged, major)) {
             deleteTree(staged);
             deleteTree(archive);
@@ -95,7 +95,7 @@ final class AndroidRuntimeInstaller {
     }
 
     private static void download(File destination, int major, Progress progress) throws Exception {
-        URL current = new URL(major == 8 ? resolveJava8ArtifactUrl() : sourceUrl(major));
+        URL current = new URL(sourceUrl(major));
         HttpURLConnection connection = null;
         try {
             for (int redirects = 0; redirects <= 5; redirects++) {
