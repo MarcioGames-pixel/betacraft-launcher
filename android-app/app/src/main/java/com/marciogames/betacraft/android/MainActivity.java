@@ -198,6 +198,15 @@ public final class MainActivity extends Activity {
         root.addView(runtimeTestButton, runtimeTestParams);
         runtimeTestButton.setOnClickListener(v -> testJavaRuntime());
 
+        Button graphicsTestButton = new Button(this);
+        graphicsTestButton.setText("Test Android graphics surface");
+        styleButton(graphicsTestButton, false);
+        LinearLayout.LayoutParams graphicsParams = matchWrap();
+        graphicsParams.topMargin = dp(8);
+        root.addView(graphicsTestButton, graphicsParams);
+        graphicsTestButton.setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, RendererTestActivity.class)));
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
         progressBar.setVisibility(android.view.View.GONE);
