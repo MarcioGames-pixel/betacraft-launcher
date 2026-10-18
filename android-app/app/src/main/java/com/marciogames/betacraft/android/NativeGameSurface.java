@@ -81,6 +81,7 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
     }
 
     @Override public void surfaceCreated(SurfaceHolder holder) {
+        requestFocus();
         Surface surface = holder.getSurface();
         if (!LIBRARY_AVAILABLE) {
             notifyStatus("Renderer library missing from this APK.");
