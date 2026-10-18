@@ -35,6 +35,19 @@ final class AndroidLaunchPreflight {
         File jliLibrary = findNamedFile(runtimeRoot, "libjli.so");
         boolean jliReady = jliLibrary != null && AndroidRuntimeInstaller.isArm64Elf(jliLibrary);
         boolean runtimeVersionReady = runtimeHasMajor(runtimeRoot, requiredJava);
+        boolean legacyAppletVersion = false;
+        File selectedJar = new File(new File(dataRoot, "versions"), version + ".jar");
+        try {
+            legacyAppletVersion = AndroidLaunchMethodDetector.detectAppletClass(selectedJar) != null;
+        } catch (Exception ignored) {
+            // The ordinary JAR validation below reports malformed/missing game files.
+        }
+        boolean appletClassesReady = !legacyAppletVersion
+                || AndroidRuntimeInstaller.hasLegacyAppletClasses(runtimeRoot);
+        if (legacyAppletVersion) {
+            lines.add((appletClassesReady ? "OK" : "MISSING")
+                    + " — Java Applet/AWT classes required by this legacy version");
+        }
         lines.add((jvmReady && jliReady && runtimeVersionReady ? "OK" : "MISSING")
                 + " — Java " + requiredJava + " Android ARM64 runtime"
                 + (jvmReady && jliReady && runtimeVersionReady ? "" :
@@ -77,7 +90,7 @@ final class AndroidLaunchPreflight {
 
         boolean ready = gameRendererReady && jarReady && metadataReady && launchMethodReady && androidAdapterReady
                 && abiReady && jvmReady && jliReady && runtimeVersionReady
-                && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady
+                && appletClassesReady && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady
                 && glfwReady && jawtReady && compatJarReady;
         lines.add("");
         lines.add(ready
