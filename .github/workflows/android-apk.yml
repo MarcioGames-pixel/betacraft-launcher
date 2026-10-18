@@ -49,7 +49,17 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses
           set -o pipefail
-          "$SDKMANAGER" --install "ndk;27.2.12479018"
+          # Retry transient/truncated package downloads before failing the build.
+          installed=0
+          for attempt in 1 2 3; do
+            if "$SDKMANAGER" --install "ndk;27.2.12479018"; then
+              installed=1
+              break
+            fi
+            echo "NDK install attempt $attempt failed; retrying in 5 seconds."
+            sleep 5
+          done
+          test "$installed" -eq 1
 
       - name: Set up JDK 8 for legacy LWJGL generator
         uses: actions/setup-java@v4
