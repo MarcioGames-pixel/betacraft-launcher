@@ -240,12 +240,6 @@ final class AndroidGameLaunchPlan {
             if (archive.getJarEntry("com/mojang/minecraft/RubyDung.class") != null) {
                 return "com.mojang.minecraft.RubyDung";
             }
-            if (archive.getJarEntry("net/minecraft/client/Minecraft.class") != null) {
-                return "net.minecraft.client.Minecraft";
-            }
-            if (archive.getJarEntry("com/mojang/minecraft/Minecraft.class") != null) {
-                return "com.mojang.minecraft.Minecraft";
-            }
             return null;
         }
     }
