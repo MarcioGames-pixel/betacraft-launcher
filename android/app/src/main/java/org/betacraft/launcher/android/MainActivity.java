@@ -18,8 +18,19 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Native Android front end for BetaCraft Launcher v1.
@@ -47,6 +58,10 @@ public final class MainActivity extends Activity {
     private boolean newestFirst = false;
     private final List<String[]> instances = new ArrayList<>();
     private final List<String[]> servers = new ArrayList<>();
+    private final List<String> availableVersions = new ArrayList<>();
+    private final ExecutorService catalogExecutor = Executors.newSingleThreadExecutor();
+    private String catalogStatus = "Catalog not loaded";
+    private String versionSearch = "";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -58,12 +73,76 @@ public final class MainActivity extends Activity {
         newestFirst = preferences.getBoolean("newest_first", false);
         loadPairs("instances", instances);
         loadPairs("servers", servers);
+        loadCachedVersions();
         if (instances.isEmpty()) {
             instances.add(new String[]{"Default", selectedVersion});
             savePairs("instances", instances);
         }
         if (!hasInstance(activeInstance)) activeInstance = instances.get(0)[0];
         showTab("Launcher");
+        refreshVersionCatalog();
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        catalogExecutor.shutdownNow();
+    }
+
+    private void loadCachedVersions() {
+        try {
+            JSONArray array = new JSONArray(preferences.getString("version_catalog", "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                String version = array.optString(i, "").trim();
+                if (!version.isEmpty() && !availableVersions.contains(version)) availableVersions.add(version);
+            }
+            if (!availableVersions.isEmpty()) catalogStatus = "Cached catalog • " + availableVersions.size() + " versions";
+        } catch (Exception ignored) { }
+        if (availableVersions.isEmpty()) Collections.addAll(availableVersions, VERSIONS);
+    }
+
+    private void refreshVersionCatalog() {
+        catalogStatus = "Refreshing official BetaCraft catalog…";
+        catalogExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://files.betacraft.uk/launcher/assets/jsons/");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(15000);
+                connection.setRequestMethod("GET");
+                connection.setRequestProperty("User-Agent", "BetaCraft-Android-Preview/1.09");
+                int code = connection.getResponseCode();
+                if (code < 200 || code >= 300) throw new java.io.IOException("HTTP " + code);
+                StringBuilder html = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) html.append(line).append('\n');
+                }
+                Matcher matcher = Pattern.compile("href=[\\\"']([^\\\"']+\\.info)[\\\"']", Pattern.CASE_INSENSITIVE).matcher(html.toString());
+                List<String> found = new ArrayList<>();
+                while (matcher.find()) {
+                    String fileName = matcher.group(1);
+                    if (fileName.contains("/") || fileName.startsWith(".") || fileName.contains(".info.")) continue;
+                    String version = URLDecoder.decode(fileName.substring(0, fileName.length() - 5), "UTF-8").trim();
+                    if (!version.isEmpty() && !found.contains(version)) found.add(version);
+                }
+                if (found.isEmpty()) throw new java.io.IOException("No version entries found");
+                Collections.sort(found, String.CASE_INSENSITIVE_ORDER);
+                JSONArray cache = new JSONArray();
+                for (String version : found) cache.put(version);
+                synchronized (availableVersions) {
+                    availableVersions.clear();
+                    availableVersions.addAll(found);
+                }
+                preferences.edit().putString("version_catalog", cache.toString()).apply();
+                catalogStatus = "Official catalog loaded • " + found.size() + " versions";
+            } catch (Exception ex) {
+                catalogStatus = "Offline: using " + availableVersions.size() + " cached versions (" + ex.getMessage() + ")";
+            } finally {
+                if (connection != null) connection.disconnect();
+                runOnUiThread(() -> { if ("Versions".equals(selectedTab)) showTab("Versions"); });
+            }
+        });
     }
 
     private int dp(float value) {
@@ -196,15 +275,48 @@ public final class MainActivity extends Activity {
     }
 
     private void renderVersions() {
-        section("Game versions", "Choose a version for the active profile. The list is currently a built-in starter catalog.");
-        content.addView(button(newestFirst ? "Sort: newest first" : "Sort: oldest first", false, v -> {
+        section("Game versions", "Browse the official BetaCraft metadata catalog. Choosing a version saves it to this profile.");
+        card("Catalog status", catalogStatus);
+        content.addView(button("Refresh official catalog", false, v -> {
+            catalogStatus = "Refreshing official BetaCraft catalog…";
+            showTab("Versions");
+            refreshVersionCatalog();
+        }), new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
+
+        EditText search = new EditText(this);
+        search.setSingleLine(true);
+        search.setTextColor(TEXT);
+        search.setHintTextColor(MUTED);
+        search.setHint("Search versions (e.g. b1.7.3 or c0.30)");
+        search.setText(versionSearch);
+        content.addView(search, new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 4);
+        content.addView(button("Search catalog", true, v -> {
+            versionSearch = search.getText().toString().trim();
+            showTab("Versions");
+        }), new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
+        content.addView(button(newestFirst ? "Sort: Z → A" : "Sort: A → Z", false, v -> {
             newestFirst = !newestFirst;
             preferences.edit().putBoolean("newest_first", newestFirst).apply();
             showTab("Versions");
         }), new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 8);
-        for (int i = 0; i < VERSIONS.length; i++) {
-            final String version = VERSIONS[newestFirst ? VERSIONS.length - 1 - i : i];
+
+        List<String> filtered = new ArrayList<>();
+        synchronized (availableVersions) {
+            for (String version : availableVersions) {
+                if (version.toLowerCase(Locale.ROOT).contains(versionSearch.toLowerCase(Locale.ROOT))) filtered.add(version);
+            }
+        }
+        Collections.sort(filtered, String.CASE_INSENSITIVE_ORDER);
+        if (newestFirst) Collections.reverse(filtered);
+        int total = filtered.size();
+        int limit = Math.min(total, versionSearch.isEmpty() ? 100 : 250);
+        card("Results", total + " matching version(s)" + (total > limit ? " • showing " + limit + "; search to narrow the list" : ""));
+        for (int i = 0; i < limit; i++) {
+            final String version = filtered.get(i);
             boolean active = version.equals(selectedVersion);
             content.addView(button((active ? "✓  " : "") + version, active, v -> {
                 selectedVersion = version;
@@ -214,8 +326,9 @@ public final class MainActivity extends Activity {
                 showTab("Versions");
             }), new LinearLayout.LayoutParams(-1, -2));
         }
+        if (total == 0) card("No matches", "Try a shorter version name or refresh the catalog.");
         addGap(content, 10);
-        card("Important", "Selecting a version saves the profile only; game metadata and files are not downloaded yet.");
+        card("Download status", "This loads version names and metadata availability only. Game JAR downloads and launching are not connected yet.");
     }
 
     private void renderServers() {
