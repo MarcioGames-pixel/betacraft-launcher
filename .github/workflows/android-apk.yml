@@ -109,6 +109,26 @@ jobs:
       - name: Run Android unit tests and build debug APK
         run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug
 
+      - name: Verify LWJGL Android natives are inside the APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find android-app/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -type f | head -n 1)"
+          test -n "$APK"
+          echo "Checking native libraries in $APK"
+          CONTENTS="$(unzip -Z1 "$APK")"
+          for entry in \
+            lib/arm64-v8a/liblwjgl64.so \
+            lib/arm64-v8a/libglfw.so \
+            lib/arm64-v8a/libjawt.so \
+            lib/arm64-v8a/libGL.so; do
+            if ! grep -Fxq "$entry" <<< "$CONTENTS"; then
+              echo "Required native library is missing from APK: $entry"
+              exit 1
+            fi
+            echo "OK: $entry"
+          done
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
