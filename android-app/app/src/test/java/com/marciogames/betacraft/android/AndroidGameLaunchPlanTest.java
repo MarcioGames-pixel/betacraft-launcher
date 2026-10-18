@@ -60,6 +60,35 @@ public class AndroidGameLaunchPlanTest {
         }
     }
 
+    @Test public void appliesConfiguredMaximumHeap() throws Exception {
+        File temp = Files.createTempDirectory("betacraft-configured-heap").toFile();
+        try {
+            File data = new File(temp, "data");
+            File versions = new File(data, "versions");
+            assertTrue(versions.mkdirs());
+            createJar(new File(versions, "1.6.4.jar"), "net.minecraft.client.main.Main",
+                    "net/minecraft/client/main/Main.class");
+            File runtime = new File(data, "runtime/java8");
+            assertTrue(runtime.mkdirs());
+            write(new File(runtime, "release"), "JAVA_VERSION=\"1.8.0\"\n");
+            write(new File(runtime, "libjli.so"), "test");
+            write(new File(runtime, "libjvm.so"), "test");
+            File nativeDir = new File(temp, "native");
+            assertTrue(nativeDir.mkdirs());
+
+            AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(
+                    data, nativeDir, "1.6.4", "Player", "", 1536);
+            assertTrue(plan.jvmArguments.contains("-Xmx1536M"));
+            assertTrue(plan.jvmArguments.contains("-Xms256M"));
+            try {
+                AndroidGameLaunchPlan.prepare(data, nativeDir, "1.6.4", "Player", "", 256);
+                fail("Out-of-range memory must be rejected.");
+            } catch (IllegalArgumentException expected) { }
+        } finally {
+            deleteTree(temp);
+        }
+    }
+
     @Test public void preparesStandaloneCaveGameWithoutModernArguments() throws Exception {
         File temp = Files.createTempDirectory("betacraft-cave-game").toFile();
         try {
