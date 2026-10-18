@@ -296,7 +296,7 @@ public final class MainActivity extends Activity {
         TextView note = new TextView(this);
         note.setTextColor(Color.LTGRAY);
         note.setTextSize(13);
-        note.setText("BetaCraft for Android is an early port. Install the matching ARM64 Java runtime and the version launch method before testing. A native JVM bootstrap is included, but Minecraft rendering, touch input and legacy LWJGL compatibility are not complete yet.");
+        note.setText("BetaCraft for Android is an early port. Install the matching ARM64 Java runtime and the version launch method before testing. A native JVM bootstrap and LWJGL2 Android GLFW surface are included. Rendering and compatibility still need real-device testing across legacy versions.");
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = matchWrap();
         noteParams.topMargin = dp(18);
@@ -395,7 +395,7 @@ public final class MainActivity extends Activity {
         username.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Experimental Java launch")
-                .setMessage("Modern Main-based versions and an experimental legacy applet lifecycle host can be prepared. The Android LWJGL renderer/input bridge is still incomplete, so successful game rendering is not guaranteed.")
+                .setMessage("Modern Main-based versions and an experimental legacy applet lifecycle host can be prepared. The launcher now creates the Android GLFW surface before starting the JVM and forwards touch controls to GLFW. Actual rendering still needs testing with each selected game version.")
                 .setView(username)
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Prepare", (dialog, which) -> {
