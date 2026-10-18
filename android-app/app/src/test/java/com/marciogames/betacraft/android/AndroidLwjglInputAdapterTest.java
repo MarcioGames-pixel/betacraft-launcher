@@ -66,6 +66,15 @@ public class AndroidLwjglInputAdapterTest {
         assertEquals(0f, recorder.x, 0.001f);
     }
 
+    @Test public void forwardsVirtualCursorWithoutMouseClick() {
+        Recorder recorder = new Recorder();
+        AndroidLwjglInputAdapter.dispatch(recorder,
+                new float[]{NativeGameSurface.INPUT_MOUSE, 13, 0, 0.25f, 0.75f}, 800, 400);
+        assertEquals(200f, recorder.x, 0.001f);
+        assertEquals(300f, recorder.y, 0.001f);
+        assertEquals(-1, recorder.button);
+    }
+
     @Test public void clampsInvalidCoordinates() {
         Recorder recorder = new Recorder();
         AndroidLwjglInputAdapter.dispatch(recorder,
