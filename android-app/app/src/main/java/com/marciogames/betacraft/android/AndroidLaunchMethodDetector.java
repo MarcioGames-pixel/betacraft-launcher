@@ -45,6 +45,24 @@ final class AndroidLaunchMethodDetector {
         return null;
     }
 
+    /**
+     * Returns the concrete applet entry class used by old Minecraft clients.
+     * This is detection only: Android does not provide the desktop Applet
+     * container, so callers must route it through an Android applet adapter.
+     */
+    static String detectAppletClass(File jar) throws IOException {
+        if (jar == null || !jar.isFile()) return null;
+        try (JarFile archive = new JarFile(jar)) {
+            if (has(archive, "net/minecraft/client/MinecraftApplet.class")) {
+                return "net.minecraft.client.MinecraftApplet";
+            }
+            if (has(archive, "com/mojang/minecraft/MinecraftApplet.class")) {
+                return "com.mojang.minecraft.MinecraftApplet";
+            }
+        }
+        return null;
+    }
+
     private static boolean has(JarFile jar, String path) {
         return jar.getJarEntry(path) != null;
     }
