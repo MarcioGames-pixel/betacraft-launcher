@@ -7,8 +7,6 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 public class FallbackCursorDrawable extends Drawable {
     private final Paint fallbackRectPaint = new Paint();
@@ -19,7 +17,7 @@ public class FallbackCursorDrawable extends Drawable {
     }
 
     @Override
-    public void draw(@NonNull Canvas canvas) {
+    public void draw(Canvas canvas) {
         canvas.drawRect(getBounds(), fallbackRectPaint);
     }
 
@@ -34,7 +32,7 @@ public class FallbackCursorDrawable extends Drawable {
     }
 
     @Override
-    public void setColorFilter(@Nullable ColorFilter colorFilter) {
+    public void setColorFilter(ColorFilter colorFilter) {
 
     }
 }
