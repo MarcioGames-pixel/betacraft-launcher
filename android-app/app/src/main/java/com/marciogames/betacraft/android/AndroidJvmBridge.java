@@ -40,10 +40,24 @@ final class AndroidJvmBridge {
         builder.redirectErrorStream(true);
         Map<String, String> environment = builder.environment();
         environment.put("JAVA_HOME", actualHome.getAbsolutePath());
-        String libraries = new File(actualHome, "lib/aarch64").getAbsolutePath()
+        // Android OpenJDK builds place libjli.so in different subdirectories
+        // (commonly lib/aarch64/jli). The java executable is a separate process,
+        // so its ELF loader must be given the directory containing libjli before
+        // it starts; merely finding the file during install-time validation is
+        // not enough. Put that exact directory first, then the known JVM paths.
+        File jli = findNamedFile(actualHome, "libjli.so", 0);
+        if (jli == null || !jli.isFile()) {
+            throw new IllegalStateException("libjli.so is missing from the selected Java runtime.");
+        }
+        String jliDirectory = jli.getParentFile().getAbsolutePath();
+        String libraries = jliDirectory
+                + ":" + new File(actualHome, "lib/aarch64").getAbsolutePath()
                 + ":" + new File(actualHome, "lib/aarch64/server").getAbsolutePath()
+                + ":" + new File(actualHome, "lib/aarch64/jli").getAbsolutePath()
                 + ":" + new File(actualHome, "lib/server").getAbsolutePath()
                 + ":" + new File(actualHome, "lib").getAbsolutePath();
+        String inherited = environment.get("LD_LIBRARY_PATH");
+        if (inherited != null && !inherited.isEmpty()) libraries += ":" + inherited;
         environment.put("LD_LIBRARY_PATH", libraries);
         Process process = builder.start();
         StringBuilder output = new StringBuilder();
