@@ -30,7 +30,7 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 
 ## Important limitations
 
-This remains an experimental Android port and is not yet verified as a working Minecraft launcher. The build now includes a real LWJGL 2 GLFW backend instead of only checking for absent libraries, but the fork's window creation and event callbacks must still be verified on a physical Android device. Legacy applet launch methods, game argument resolution, assets, and in-game touch mapping are not complete. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
+This remains an experimental Android port and is not yet verified as a working Minecraft launcher. The build now includes a real LWJGL 2 GLFW backend instead of only checking for absent libraries, but the fork's window creation and event callbacks must still be verified on a physical Android device. Legacy applet launch methods (including Classic, Indev and Infdev), custom launch-method adapters, complete game argument/library/assets resolution, and in-game touch mapping are not complete. The version catalogue can list all BetaCraft versions, but that does not mean every historical version can launch yet. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
 
 Remaining work:
 1. Validate metadata formats and test launch-method downloads against the live catalogue, including versions without a launch method.
