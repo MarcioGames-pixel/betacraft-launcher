@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import android.widget.FrameLayout;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -65,12 +66,28 @@ public final class RendererTestActivity extends Activity {
         status.setGravity(Gravity.CENTER);
         root.addView(status, new LinearLayout.LayoutParams(-1, dp(48)));
 
+        FrameLayout gameSurfaceFrame = new FrameLayout(this);
+        LinearLayout.LayoutParams surfaceParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        root.addView(gameSurfaceFrame, surfaceParams);
         NativeGameSurface surface = new NativeGameSurface(this, message ->
                 runOnUiThread(() -> status.setText(message)));
         surface.setFocusableInTouchMode(true);
-        LinearLayout.LayoutParams surfaceParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        root.addView(surface, surfaceParams);
+        gameSurfaceFrame.addView(surface, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        AndroidTouchControls touchControls = new AndroidTouchControls(this);
+        touchControls.setCallbackSink(new AndroidLwjglInputAdapter.CallbackSink() {
+            @Override public void key(int glfwKey, int codePoint, boolean down) {
+                NativeGameSurface.sendVirtualKey(glfwKey, down);
+            }
+            @Override public void cursor(float x, float y) { }
+            @Override public void mouseButton(int button, boolean down) {
+                if (button == 0) NativeGameSurface.sendVirtualMouse(down);
+            }
+            @Override public void scroll(double x, double y) { }
+        });
+        gameSurfaceFrame.addView(touchControls, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         inputStatus = new TextView(this);
         inputStatus.setText("Touch the graphics area or press a keyboard key to test input.");
