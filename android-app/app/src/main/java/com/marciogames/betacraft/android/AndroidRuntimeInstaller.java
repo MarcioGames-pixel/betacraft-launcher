@@ -412,6 +412,30 @@ final class AndroidRuntimeInstaller {
         progress.update("Validating OpenJDK " + major, expanded, MAX_UNPACKED_BYTES);
     }
 
+    /**
+     * Legacy applet launch needs the Java 8 Applet/AWT classes, not only libjvm.so.
+     * Some Android runtimes intentionally omit these classes, so detect that before
+     * trying to start an applet and failing later with ClassNotFoundException.
+     */
+    static boolean hasLegacyAppletClasses(File root) {
+        File rtJar = findFileObject(root, "rt.jar");
+        if (rtJar == null) return false;
+        String[] required = {
+                "java/applet/Applet.class",
+                "java/applet/AppletStub.class",
+                "java/applet/AppletContext.class",
+                "java/awt/Component.class"
+        };
+        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(rtJar)) {
+            for (String entry : required) {
+                if (jar.getJarEntry(entry) == null) return false;
+            }
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     static boolean hasCompatibleRuntime(File root, int expectedMajor) {
         File jvm = findFileObject(root, "libjvm.so");
         File jli = findFileObject(root, "libjli.so");
