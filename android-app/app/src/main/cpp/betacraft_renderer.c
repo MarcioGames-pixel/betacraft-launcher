@@ -190,6 +190,17 @@ Java_com_marciogames_betacraft_android_NativeGameSurface_nativeStart(
     return JNI_TRUE;
 }
 
+
+JNIEXPORT void JNICALL
+Java_com_marciogames_betacraft_android_NativeGameSurface_nativeResize(
+        JNIEnv *env, jclass clazz, jint width, jint height) {
+    (void) env; (void) clazz;
+    if (width <= 0 || height <= 0) return;
+    atomic_store(&state.surface_width, width);
+    atomic_store(&state.surface_height, height);
+    LOGI("Requested EGL viewport resize: %d x %d", width, height);
+}
+
 JNIEXPORT void JNICALL
 Java_com_marciogames_betacraft_android_NativeGameSurface_nativeStop(
         JNIEnv *env, jclass clazz) {
