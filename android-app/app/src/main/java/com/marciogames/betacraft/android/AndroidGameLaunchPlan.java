@@ -3,7 +3,6 @@ package com.marciogames.betacraft.android;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -74,9 +73,13 @@ final class AndroidGameLaunchPlan {
         int javaMajor = AndroidLaunchPreflight.recommendedJavaMajor(version);
         File javaHome = new File(new File(dataRoot, "runtime"), "java" + javaMajor);
         File release = findFile(javaHome, "release", 0);
-        if (release == null || findFile(javaHome, "libjli.so", 0) == null
-                || findFile(javaHome, "libjvm.so", 0) == null) {
+        if (release == null) {
             throw new IllegalStateException("Install the recommended Android ARM64 Java runtime first.");
+        }
+        javaHome = release.getParentFile();
+        if (findFile(javaHome, "libjli.so", 0) == null
+                || findFile(javaHome, "libjvm.so", 0) == null) {
+            throw new IllegalStateException("The installed Java runtime is missing libjli.so or libjvm.so.");
         }
 
         File libraries = new File(dataRoot, "libraries");
