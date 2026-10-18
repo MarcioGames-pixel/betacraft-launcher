@@ -52,7 +52,7 @@ final class AndroidLaunchPreflight {
                 || containsNamedFile(librariesDir, "liblwjgl64.so");
         lines.add((lwjglReady ? "OK" : "MISSING")
                 + " — LWJGL JNI native library (required by the selected game version)");
-        lines.add("PARTIAL — Android input capture and bounded JNI queue exist, but events are not yet consumed by an LWJGL Android backend");
+        lines.add("PARTIAL — Minecraft input bridge: Android input capture and bounded JNI queue exist, but events are not yet consumed by an LWJGL Android backend");
         lines.add("MISSING — complete version-specific dependency/asset resolution and a compatible LWJGL Android render loop");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
