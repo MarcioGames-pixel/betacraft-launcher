@@ -20,6 +20,11 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.InputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.security.MessageDigest;
+import java.util.Properties;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -328,7 +333,79 @@ public final class MainActivity extends Activity {
         }
         if (total == 0) card("No matches", "Try a shorter version name or refresh the catalog.");
         addGap(content, 10);
-        card("Download status", "This loads version names and metadata availability only. Game JAR downloads and launching are not connected yet.");
+        content.addView(button("Download selected version metadata + JAR", true, v -> downloadSelectedVersion()),
+                new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
+        card("Download status", "Downloads the official .info metadata and version JAR into private app storage. This does not install Java or enable game launching yet.");
+    }
+
+    private void downloadSelectedVersion() {
+        final String version = selectedVersion;
+        Toast.makeText(this, "Starting download for " + version, Toast.LENGTH_SHORT).show();
+        catalogExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                File root = new File(getFilesDir(), "betacraft/versions");
+                File metadataDir = new File(root, "jsons");
+                if (!metadataDir.exists() && !metadataDir.mkdirs()) throw new java.io.IOException("Cannot create metadata folder");
+                if (!root.exists() && !root.mkdirs()) throw new java.io.IOException("Cannot create versions folder");
+                URL metadataUrl = new URL("https://files.betacraft.uk/launcher/assets/jsons/" +
+                        java.net.URLEncoder.encode(version, "UTF-8").replace("+", "%20") + ".info");
+                connection = (HttpURLConnection) metadataUrl.openConnection();
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(20000);
+                connection.setRequestProperty("User-Agent", "BetaCraft-Android-Preview/1.10");
+                if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300)
+                    throw new java.io.IOException("Metadata HTTP " + connection.getResponseCode());
+                File metadataFile = new File(metadataDir, version + ".info");
+                try (InputStream in = connection.getInputStream(); FileOutputStream out = new FileOutputStream(metadataFile)) {
+                    byte[] buffer = new byte[8192]; int count;
+                    while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+                } finally { connection.disconnect(); connection = null; }
+
+                Properties properties = new Properties();
+                try (InputStream in = new java.io.FileInputStream(metadataFile)) { properties.load(in); }
+                String downloadUrl = properties.getProperty("url", "").trim();
+                if (downloadUrl.isEmpty()) throw new java.io.IOException("Metadata has no 'url' field");
+                if (downloadUrl.startsWith("http://")) downloadUrl = "https://" + downloadUrl.substring(7);
+                URL jarUrl = new URL(downloadUrl);
+                if (!"https".equalsIgnoreCase(jarUrl.getProtocol()))
+                    throw new java.io.IOException("Refusing non-HTTPS JAR URL");
+                File jarFile = new File(root, version + ".jar");
+                connection = (HttpURLConnection) jarUrl.openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(30000);
+                connection.setRequestProperty("User-Agent", "BetaCraft-Android-Preview/1.10");
+                int code = connection.getResponseCode();
+                if (code < 200 || code >= 300) throw new java.io.IOException("JAR HTTP " + code);
+                MessageDigest digest = MessageDigest.getInstance("SHA-1");
+                try (InputStream in = connection.getInputStream(); FileOutputStream out = new FileOutputStream(jarFile)) {
+                    byte[] buffer = new byte[16384]; int count;
+                    while ((count = in.read(buffer)) != -1) { out.write(buffer, 0, count); digest.update(buffer, 0, count); }
+                } finally { connection.disconnect(); connection = null; }
+                String expected = properties.getProperty("sha1", "").trim();
+                String actual = toHex(digest.digest());
+                if (!expected.isEmpty() && !expected.equalsIgnoreCase(actual)) {
+                    jarFile.delete();
+                    throw new java.io.IOException("SHA-1 mismatch; incomplete/corrupt JAR removed");
+                }
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Downloaded " + version + " JAR and metadata", Toast.LENGTH_LONG).show();
+                    if ("Versions".equals(selectedTab)) showTab("Versions");
+                });
+            } catch (Exception ex) {
+                if (connection != null) connection.disconnect();
+                final String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+                runOnUiThread(() -> new AlertDialog.Builder(this).setTitle("Version download failed")
+                        .setMessage(message).setPositiveButton("OK", null).show());
+            }
+        });
+    }
+
+    private String toHex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) result.append(String.format(Locale.ROOT, "%02x", value & 0xff));
+        return result.toString();
     }
 
     private void renderServers() {
