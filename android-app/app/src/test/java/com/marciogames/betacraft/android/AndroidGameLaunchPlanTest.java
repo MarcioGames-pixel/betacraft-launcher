@@ -88,6 +88,18 @@ public class AndroidGameLaunchPlanTest {
         }
     }
 
+    @Test public void detectsMinecraftAppletWithoutAssumingItsPackage() throws Exception {
+        File temp = Files.createTempDirectory("betacraft-applet-package").toFile();
+        try {
+            File jar = new File(temp, "custom.jar");
+            createJar(jar, null, "com/example/legacy/MinecraftApplet.class");
+            assertEquals("com.example.legacy.MinecraftApplet",
+                    AndroidLaunchMethodDetector.detectAppletClass(jar));
+        } finally {
+            deleteTree(temp);
+        }
+    }
+
     @Test public void rejectsAppletOnlyVersionInsteadOfPassingWrongArguments() throws Exception {
         File temp = Files.createTempDirectory("betacraft-applet-launch").toFile();
         try {
