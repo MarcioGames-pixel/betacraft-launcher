@@ -94,6 +94,7 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
     }
 
     @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        if (LIBRARY_AVAILABLE && running) nativeResize(width, height);
         notifyStatus("Android surface: " + width + " × " + height + " pixels.");
     }
 
@@ -129,6 +130,7 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
     }
 
     private static native void nativeSendInput(int type, int action, int code, float x, float y);
+    private static native void nativeResize(int width, int height);
     private static native float[] nativePollInput();
     private static native boolean nativeStart(Surface surface);
     private static native void nativeStop();
