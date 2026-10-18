@@ -21,6 +21,7 @@ final class AndroidTouchControls extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     // Maps pointer IDs to a GLFW key or CONTROL_MOUSE_LEFT while each finger is held.
     private final SparseIntArray pointerControls = new SparseIntArray();
+    private final SparseIntArray heldControlCounts = new SparseIntArray();
     private AndroidLwjglInputAdapter.CallbackSink sink;
 
     AndroidTouchControls(Context context) { super(context); init(); }
@@ -81,8 +82,12 @@ final class AndroidTouchControls extends View {
             if (pointerControls.indexOfKey(pointerId) >= 0) return true;
             int control = key != 0 ? key : CONTROL_MOUSE_LEFT;
             pointerControls.put(pointerId, control);
-            if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, true);
-            else sink.key(control, 0, true);
+            int count = heldControlCounts.get(control, 0);
+            heldControlCounts.put(control, count + 1);
+            if (count == 0) {
+                if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, true);
+                else sink.key(control, 0, true);
+            }
             invalidate();
             return true;
         }
@@ -126,21 +131,28 @@ final class AndroidTouchControls extends View {
         if (index < 0) return;
         int control = pointerControls.valueAt(index);
         pointerControls.removeAt(index);
-        if (sink != null) {
-            if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, false);
-            else sink.key(control, 0, false);
+        int count = heldControlCounts.get(control, 0) - 1;
+        if (count <= 0) {
+            heldControlCounts.delete(control);
+            if (sink != null) {
+                if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, false);
+                else sink.key(control, 0, false);
+            }
+        } else {
+            heldControlCounts.put(control, count);
         }
     }
 
     private void releaseAll() {
         if (sink != null) {
-            for (int i = pointerControls.size() - 1; i >= 0; i--) {
-                int control = pointerControls.valueAt(i);
+            for (int i = heldControlCounts.size() - 1; i >= 0; i--) {
+                int control = heldControlCounts.keyAt(i);
                 if (control == CONTROL_MOUSE_LEFT) sink.mouseButton(0, false);
                 else sink.key(control, 0, false);
             }
         }
         pointerControls.clear();
+        heldControlCounts.clear();
     }
 
     @Override protected void onDetachedFromWindow() {
