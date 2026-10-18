@@ -100,6 +100,28 @@ public class AndroidGameLaunchPlanTest {
         }
     }
 
+    @Test public void preparesAppletClassAndStandardParametersWithoutFixedPackage() throws Exception {
+        File temp = Files.createTempDirectory("betacraft-applet-plan").toFile();
+        try {
+            File jar = new File(temp, "legacy.jar");
+            createJar(jar, null, "com/example/old/MinecraftApplet.class");
+            File game = new File(temp, "game");
+            assertTrue(game.mkdirs());
+            AndroidAppletLaunchAdapter.Plan plan = AndroidAppletLaunchAdapter.prepare(
+                    jar, game, "custom-legacy", "Player_1", 854, 480);
+            assertEquals("com.example.old.MinecraftApplet", plan.appletClass);
+            assertEquals("Player_1", plan.parameters.get("username"));
+            assertEquals("0", plan.parameters.get("sessionid"));
+            assertEquals("false", plan.parameters.get("haspaid"));
+            assertEquals("true", plan.parameters.get("standalone"));
+            assertEquals("custom-legacy", plan.parameters.get("version"));
+            assertEquals("854", plan.parameters.get("width"));
+            assertEquals("480", plan.parameters.get("height"));
+            assertEquals(game.getCanonicalFile(), plan.gameDirectory.getCanonicalFile());
+        } finally {
+            deleteTree(temp);
+        }
+    }
     @Test public void rejectsAppletOnlyVersionInsteadOfPassingWrongArguments() throws Exception {
         File temp = Files.createTempDirectory("betacraft-applet-launch").toFile();
         try {
