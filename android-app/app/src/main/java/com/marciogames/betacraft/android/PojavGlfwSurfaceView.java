@@ -3,7 +3,6 @@ package com.marciogames.betacraft.android;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -47,6 +46,7 @@ final class PojavGlfwSurfaceView extends SurfaceView implements SurfaceHolder.Ca
                 if (this.listener != null) this.listener.onCursor(cursor);
             });
             GLFW.setInitCallback(() -> { });
+            GLFW.setGamepadEnableHandler(() -> { });
             GLFW.setClipboardImpl(new GLFWClipboard() {
                 @Override public String getClipboardString() {
                     ClipboardManager clipboard = (ClipboardManager) getContext()
@@ -130,7 +130,7 @@ final class PojavGlfwSurfaceView extends SurfaceView implements SurfaceHolder.Ca
                         event.getAxisValue(MotionEvent.AXIS_VSCROLL));
             } else {
                 GLFW.sendMousePosition0(x, y);
-                int button = androidMouseButton(event.getButtonState());
+                int button = androidMouseButton(event.getButtonState(), event.getActionButton());
                 if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_BUTTON_PRESS) {
                     GLFW.sendMouseEvent(button, 1, event.getMetaState());
                 } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_BUTTON_RELEASE) {
@@ -150,9 +150,11 @@ final class PojavGlfwSurfaceView extends SurfaceView implements SurfaceHolder.Ca
         return true;
     }
 
-    private static int androidMouseButton(int buttons) {
-        if ((buttons & MotionEvent.BUTTON_SECONDARY) != 0) return 1;
-        if ((buttons & MotionEvent.BUTTON_TERTIARY) != 0) return 2;
+    private static int androidMouseButton(int buttons, int actionButton) {
+        if (actionButton == MotionEvent.BUTTON_SECONDARY
+                || (buttons & MotionEvent.BUTTON_SECONDARY) != 0) return 1;
+        if (actionButton == MotionEvent.BUTTON_TERTIARY
+                || (buttons & MotionEvent.BUTTON_TERTIARY) != 0) return 2;
         return 0;
     }
 
