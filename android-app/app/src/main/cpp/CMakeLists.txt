@@ -52,6 +52,16 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "No GLFW docs in APK" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "No GLFW install step" FORCE)
 set(BUILD_SHARED_LIBS ON CACHE BOOL "Package GLFW as shared library" FORCE)
 
+# GLFW's Android platform uses MojoExec for native library and driver helpers.
+# Add this dependency first; the GLFW CMake project refuses to configure without it.
+FetchContent_Declare(
+    pojav_mojoexec
+    GIT_REPOSITORY https://github.com/MojoLauncher/mojoexec.git
+    GIT_TAG 5a60f9ebbd881ef7b73da4d0b20e158411ffde51
+    GIT_SHALLOW FALSE
+)
+FetchContent_MakeAvailable(pojav_mojoexec)
+
 FetchContent_Declare(
     pojav_glfw
     GIT_REPOSITORY https://github.com/MojoLauncher/glfw.git
