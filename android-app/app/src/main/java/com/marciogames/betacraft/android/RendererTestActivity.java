@@ -80,7 +80,9 @@ public final class RendererTestActivity extends Activity {
             @Override public void key(int glfwKey, int codePoint, boolean down) {
                 NativeGameSurface.sendVirtualKey(glfwKey, down);
             }
-            @Override public void cursor(float x, float y) { }
+            @Override public void cursor(float x, float y) {
+                NativeGameSurface.sendVirtualCursor(x, y);
+            }
             @Override public void mouseButton(int button, boolean down) {
                 if (button == 0) NativeGameSurface.sendVirtualMouse(down);
             }
