@@ -8,6 +8,7 @@ def legacyAppletAssets = layout.buildDirectory.dir('generated/legacy-applet/asse
 
 tasks.register('compileLegacyAppletHost', JavaCompile) {
     source files(legacyAppletSource)
+    classpath = files()
     destinationDirectory = legacyAppletClasses
     options.release = 8
     options.encoding = 'UTF-8'
