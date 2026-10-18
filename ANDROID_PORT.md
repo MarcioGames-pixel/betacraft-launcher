@@ -9,6 +9,9 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 ## Implemented
 
 - Native Android launcher screen; no Swing/AWT UI in the Android module.
+- Original vector pixel-cube launcher icon in the Android manifest.
+- Local named profile manager with create/select/delete actions; these profiles currently save metadata only, not separate game installations.
+- Persistent preferred Java memory and GL4ES preference settings; these are stored locally but are not yet passed to a Minecraft process.
 - Saves the selected version using Android preferences.
 - Creates app-private directories for versions, metadata, instances, addons, language files, launch methods, assets, and logs.
 - Fetches the BetaCraft version catalogue over HTTPS on a background thread and caches it for offline display.
@@ -30,10 +33,10 @@ This is **not yet a working Minecraft launcher**. The app does not yet claim to 
 
 Remaining work:
 1. Validate metadata formats and test launch-method downloads against the live catalogue, including versions without a launch method.
-2. Add version/profile and instance management.
+2. Connect the current profile manager to independent game directories, version assignments, and per-instance mod lists.
 3. Test the JNI/JLI bootstrap against both published ARM64 runtimes and device Android versions. The bootstrap is implemented, but its compatibility with each runtime still needs real-device validation.
 4. Finish renderer integration around the now-built GL4ES library: create/manage an EGL surface, load compatible LWJGL JNI binaries, connect game lifecycle and touch input, then test each version separately. Java 17 is not a substitute for Java 8 on older versions.
-5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
+5. Port Microsoft/Mojang authentication, changelog/server pages, addon/modpack management, logging, and lifecycle/background work. The current settings/profile screens are only an initial UI foundation, not full parity with desktop BetaCraft.
 6. Integrate a complete Minecraft launch-argument builder and connect it to the JVM bootstrap after renderer/input support is available. Build the APK in Actions and test on real Android devices.
 
 A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
