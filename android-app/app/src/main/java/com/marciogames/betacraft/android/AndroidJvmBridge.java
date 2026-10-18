@@ -17,14 +17,21 @@ final class AndroidJvmBridge {
     private AndroidJvmBridge() { }
 
     static int test(File javaHome) throws Exception {
+        return launch(javaHome, new String[]{"java", "-version"});
+    }
+
+    /** Launches a JVM entry point on the calling worker thread. Never call from the UI thread. */
+    static int launch(File javaHome, String[] arguments) throws Exception {
         File release = findNamedFile(javaHome, "release", 0);
         File actualHome = release == null ? javaHome : release.getParentFile();
         File jli = findNamedFile(actualHome, "libjli.so", 0);
         if (jli == null || !jli.isFile()) {
             throw new IllegalStateException("libjli.so was not found in the installed Java runtime.");
         }
-        return runNative(actualHome.getCanonicalPath(), jli.getCanonicalPath(),
-                new String[]{"java", "-version"});
+        if (arguments == null || arguments.length == 0) {
+            throw new IllegalArgumentException("At least one JVM argument is required.");
+        }
+        return runNative(actualHome.getCanonicalPath(), jli.getCanonicalPath(), arguments);
     }
 
     private static File findNamedFile(File root, String name, int depth) {
