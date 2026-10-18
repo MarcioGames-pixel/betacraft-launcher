@@ -34,5 +34,4 @@ if(TARGET GL)
         SUFFIX ".so"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
     )
-    target_link_libraries(GL PRIVATE dl log)
 endif()
