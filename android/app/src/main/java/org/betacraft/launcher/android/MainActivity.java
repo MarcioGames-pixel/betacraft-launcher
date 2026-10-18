@@ -285,10 +285,16 @@ public final class MainActivity extends Activity {
         content.addView(button("Choose version", false, v -> showTab("Versions")),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 8);
-        content.addView(button("Launch game", true, v -> new AlertDialog.Builder(this)
-                .setTitle("Runtime not connected")
-                .setMessage("The Android profile and launcher UI are working, but Minecraft still needs the ARM64 Java runtime, LWJGL/GL4ES renderer, native libraries and Android launch bridge. The game has not been started.")
-                .setPositiveButton("OK", null).show()),
+        content.addView(button("Launch game", true, v -> {
+            File java = runtimeJava();
+            String message = java.isFile()
+                    ? "A Java runtime is present at " + java.getAbsolutePath()
+                      + ", but the Android Minecraft launch bridge is not complete yet. This build does not yet configure version-specific classpaths, LWJGL/GL4ES, native libraries, audio or touch input. The game was NOT started."
+                    : "No Android Java runtime is installed. Open Settings, import a Java 8 ARM64 runtime ZIP built for Android, and run Test Java runtime. Even after Java works, the LWJGL/GL4ES renderer and version-specific launch bridge are still required. The game was NOT started.";
+            new AlertDialog.Builder(this).setTitle("Launch requirements").setMessage(message)
+                    .setPositiveButton("Open Settings", (d, w) -> showTab("Settings"))
+                    .setNegativeButton("Close", null).show();
+        }),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 18);
         section("Launcher status", null);
