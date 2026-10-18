@@ -174,7 +174,7 @@ public class AndroidGameLaunchPlanTest {
                     "com/marciogames/betacraft/runtime/LegacyAppletMain.class");
             File runtime = new File(data, "runtime/java8");
             assertTrue(runtime.mkdirs());
-            write(new File(runtime, "release"), "JAVA_VERSION=" + "\\"1.8.0\\"\n");
+            write(new File(runtime, "release"), "JAVA_VERSION=\\"1.8.0\\"\\n");
             write(new File(runtime, "libjli.so"), "test");
             write(new File(runtime, "libjvm.so"), "test");
             File nativeDir = new File(temp, "native");
