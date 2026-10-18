@@ -92,7 +92,7 @@ public final class LegacyAppletMain {
         @Override public Object invoke(Object proxy, Method method, Object[] args) {
             String name = method.getName();
             if ("getApplets".equals(name)) return Collections.enumeration(Collections.emptyList());
-            if ("getStreamKeys".equals(name)) return Collections.emptyIterator();
+            if ("getStreamKeys".equals(name)) return Collections.<String>emptyList().iterator();
             if ("toString".equals(name)) return "BetaCraftAndroidAppletContext";
             return defaultValue(method.getReturnType());
         }
