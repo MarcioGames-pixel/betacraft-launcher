@@ -1,6 +1,10 @@
 package com.marciogames.betacraft.android;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.util.Map;
+import android.util.Log;
 
 /**
  * Thin JNI adapter for OpenJDK's JLI_Launch entry point.
@@ -16,8 +20,49 @@ final class AndroidJvmBridge {
 
     private AndroidJvmBridge() { }
 
+    /**
+     * Run the runtime self-test in a child process. Calling JLI_Launch for
+     * "java -version" inside the Android app can invoke the JVM launcher's
+     * process-exit path and terminate the entire launcher. A child process
+     * keeps that exit isolated and lets us display the actual diagnostic.
+     */
     static int test(File javaHome) throws Exception {
-        return launch(javaHome, new String[]{"java", "-version"});
+        File release = findNamedFile(javaHome, "release", 0);
+        File actualHome = release == null ? javaHome : release.getParentFile();
+        File java = new File(actualHome, "bin/java");
+        if (!java.isFile()) {
+            throw new IllegalStateException("The installed runtime has no bin/java executable; reinstall the Android ARM64 runtime.");
+        }
+        java.setExecutable(true, false);
+        ProcessBuilder builder = new ProcessBuilder(java.getAbsolutePath(), "-version");
+        builder.directory(actualHome);
+        builder.redirectErrorStream(true);
+        Map<String, String> environment = builder.environment();
+        environment.put("JAVA_HOME", actualHome.getAbsolutePath());
+        String libraries = new File(actualHome, "lib/aarch64").getAbsolutePath()
+                + ":" + new File(actualHome, "lib/aarch64/server").getAbsolutePath()
+                + ":" + new File(actualHome, "lib/server").getAbsolutePath()
+                + ":" + new File(actualHome, "lib").getAbsolutePath();
+        environment.put("LD_LIBRARY_PATH", libraries);
+        Process process = builder.start();
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (output.length() < 12000) output.append(line).append('\\n');
+                Log.i("BetaCraftRuntimeTest", line);
+            }
+        }
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IllegalStateException("Java runtime child process exited with code "
+                    + exitCode + (output.length() == 0 ? "." : ":\\n" + output));
+        }
+        if (output.length() == 0) {
+            throw new IllegalStateException("Java runtime exited successfully but produced no version output.");
+        }
+        return 0;
     }
 
     /** Launches a JVM entry point on the calling worker thread. Never call from the UI thread. */
