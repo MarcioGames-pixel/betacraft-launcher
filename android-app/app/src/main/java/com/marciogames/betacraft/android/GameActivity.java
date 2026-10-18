@@ -130,12 +130,13 @@ public final class GameActivity extends Activity {
                     if (status != null) status.setText("Minecraft JVM exited with code " + result
                             + ". Check logcat for BetaCraftRuntime output.");
                 });
-            } catch (Exception error) {
+            } catch (Throwable error) {
+                String detail = error.getMessage() == null
+                        ? error.getClass().getSimpleName() : error.getMessage();
+                android.util.Log.e("BetaCraftGame", "Minecraft JVM launch failed", error);
                 runOnUiThread(() -> {
-                    if (status != null) status.setText("Could not start Minecraft: "
-                            + (error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage()));
+                    if (status != null) status.setText("Could not start Minecraft: " + detail);
                 });
-            }
         });
     }
 
