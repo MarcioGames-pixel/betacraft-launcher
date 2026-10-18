@@ -72,6 +72,37 @@ public class AndroidLaunchPreflightTest {
     }
 
     @Test
+    public void clearlyReportsThatSurfaceSmokeTestIsNotMinecraftRenderer() throws Exception {
+        File root = new File(System.getProperty("java.io.tmpdir"),
+                "betacraft-preflight-" + System.nanoTime());
+        File nativeDir = new File(root, "native");
+        assertTrue(nativeDir.mkdirs());
+        try {
+            File renderer = new File(nativeDir, "libbetacraft_renderer.so");
+            try (FileOutputStream output = new FileOutputStream(renderer)) {
+                output.write(new byte[]{1});
+            }
+            String report = AndroidLaunchPreflight.inspect(root, "Beta 1.7.3",
+                    new String[]{"arm64-v8a"}, nativeDir);
+            assertTrue(report.contains("EGL surface smoke-test library"));
+            assertTrue(report.contains("does not render Minecraft"));
+            assertTrue(report.contains("LWJGL JNI native library"));
+            assertTrue(report.contains("Minecraft input bridge"));
+            assertTrue(report.contains("NOT READY TO LAUNCH"));
+        } finally {
+            File[] children = root.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    File[] nested = child.listFiles();
+                    if (nested != null) for (File item : nested) item.delete();
+                    child.delete();
+                }
+            }
+            root.delete();
+        }
+    }
+
+    @Test
     public void defaultsSafelyForMissingVersion() {
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor(null));
         assertEquals(8, AndroidLaunchPreflight.recommendedJavaMajor(""));
