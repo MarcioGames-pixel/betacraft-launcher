@@ -38,6 +38,39 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Build pinned Android LWJGL 2 GLFW backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ant
+          LWJGL="$RUNNER_TEMP/lwjgl2-glfw"
+          git clone https://github.com/MojoLauncher/lwjgl2-glfw.git "$LWJGL"
+          git -C "$LWJGL" checkout bf01b1b05c417b55cffc04d85dbc3a9cfa3b93df
+          # The upstream generator uses Java 5/6 source levels; modern JDKs
+          # removed those levels, so compile this legacy source as Java 8.
+          find "$LWJGL" -name '*.xml' -print0 | xargs -0 sed -i -E 's/source="1\.[56]" target="1\.[56]"/source="1.8" target="1.8"/g'
+          ant -f "$LWJGL/build.xml" jars
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort | tail -n 1)"
+          if [ -z "$SDKMANAGER" ]; then echo "Android sdkmanager not found"; exit 1; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "ndk;27.2.12479018"
+          cmake -S "$LWJGL/platform_build" -B "$LWJGL/cibuild-arm64-v8a" \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake" \
+            -DANDROID_PLATFORM=android-23 -DANDROID_ABI=arm64-v8a
+          cmake --build "$LWJGL/cibuild-arm64-v8a" --parallel 2
+          mkdir -p android-app/app/src/main/assets/lwjgl2-android
+          mkdir -p android-app/app/src/main/jniLibs/arm64-v8a
+          test -s "$LWJGL/libs/lwjgl.jar"
+          test -s "$LWJGL/cibuild-arm64-v8a/liblwjgl64.so"
+          cp "$LWJGL/libs/lwjgl.jar" android-app/app/src/main/assets/lwjgl2-android/lwjgl.jar
+          cp "$LWJGL/doc/LICENSE" android-app/app/src/main/assets/lwjgl2-android/LICENSE.txt
+          cp "$LWJGL/cibuild-arm64-v8a/liblwjgl64.so" android-app/app/src/main/jniLibs/arm64-v8a/
+          cp "$LWJGL/platform_build/glfw-android/arm64-v8a/libglfw.so" android-app/app/src/main/jniLibs/arm64-v8a/
+          cp "$LWJGL/platform_build/glfw-android/arm64-v8a/libjawt.so" android-app/app/src/main/jniLibs/arm64-v8a/
+          file android-app/app/src/main/jniLibs/arm64-v8a/*.so
+          llvm-readelf -h android-app/app/src/main/jniLibs/arm64-v8a/liblwjgl64.so | grep -q 'AArch64'
+
       - name: Run Android unit tests and build debug APK
         run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug
 
