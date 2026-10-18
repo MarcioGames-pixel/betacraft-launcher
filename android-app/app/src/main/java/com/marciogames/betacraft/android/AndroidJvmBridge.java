@@ -50,14 +50,14 @@ final class AndroidJvmBridge {
                 new InputStreamReader(process.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (output.length() < 12000) output.append(line).append('\\n');
+                if (output.length() < 12000) output.append(line).append('\n');
                 Log.i("BetaCraftRuntimeTest", line);
             }
         }
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             throw new IllegalStateException("Java runtime child process exited with code "
-                    + exitCode + (output.length() == 0 ? "." : ":\\n" + output));
+                    + exitCode + (output.length() == 0 ? "." : ":\n" + output));
         }
         if (output.length() == 0) {
             throw new IllegalStateException("Java runtime exited successfully but produced no version output.");
