@@ -62,6 +62,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pojav_mojoexec)
 
+# The pinned MojoExec revision uses bool/true/false in a C source file without
+# including stdbool.h. Patch the fetched dependency in the build tree (never the
+# repository source) so Android NDK's C compiler can build it deterministically.
+set(MOJOEXEC_FAKE_DLFCN "${pojav_mojoexec_SOURCE_DIR}/driver_helper/fake_dlfcn.c")
+if(EXISTS "${MOJOEXEC_FAKE_DLFCN}")
+    file(READ "${MOJOEXEC_FAKE_DLFCN}" MOJOEXEC_FAKE_DLFCN_SOURCE)
+    string(FIND "${MOJOEXEC_FAKE_DLFCN_SOURCE}" "#include <stdbool.h>" MOJOEXEC_STDBOOL_INDEX)
+    if(MOJOEXEC_STDBOOL_INDEX EQUAL -1)
+        string(REGEX REPLACE "^(#include[^\\n]*\\n)" "\\1#include <stdbool.h>\\n"
+            MOJOEXEC_FAKE_DLFCN_SOURCE "${MOJOEXEC_FAKE_DLFCN_SOURCE}")
+        file(WRITE "${MOJOEXEC_FAKE_DLFCN}" "${MOJOEXEC_FAKE_DLFCN_SOURCE}")
+    endif()
+endif()
+
 FetchContent_Declare(
     pojav_glfw
     GIT_REPOSITORY https://github.com/MojoLauncher/glfw.git
