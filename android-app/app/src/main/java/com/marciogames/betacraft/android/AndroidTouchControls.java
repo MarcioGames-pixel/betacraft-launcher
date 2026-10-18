@@ -102,8 +102,15 @@ final class AndroidTouchControls extends View {
             return true;
         }
         if (action == MotionEvent.ACTION_MOVE) {
+            // Forward motion for fingers that are not holding a virtual button. A host
+            // can translate these normalized coordinates into LWJGL cursor movement.
+            for (int i = 0; i < event.getPointerCount(); i++) {
+                if (pointerControls.indexOfKey(event.getPointerId(i)) >= 0) continue;
+                sink.cursor(
+                        event.getX(i) / Math.max(1f, getWidth()),
+                        event.getY(i) / Math.max(1f, getHeight()));
+            }
             // Fingers already assigned to a control remain held until lifted.
-            // Unassigned fingers can still be used for the underlying look surface.
             return pointerControls.size() > 0;
         }
         return pointerControls.size() > 0;
