@@ -7,6 +7,14 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <time.h>
+#include <math.h>
+
+#define INPUT_QUEUE_CAPACITY 256
+typedef struct { int type; int action; int code; float x; float y; } InputEvent;
+static InputEvent input_queue[INPUT_QUEUE_CAPACITY];
+static unsigned int input_read = 0;
+static unsigned int input_write = 0;
+static pthread_mutex_t input_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define TAG "BetaCraftRenderer"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
@@ -93,6 +101,45 @@ done:
     ANativeWindow_release(s->window);
     s->window = NULL;
     return NULL;
+}
+
+/* Bounded native event queue. The future LWJGL Android adapter must drain this queue
+ * and translate Android key/action codes to LWJGL events; storing events alone does not
+ * make Minecraft input work yet. Oldest events are dropped if the consumer falls behind. */
+JNIEXPORT void JNICALL
+Java_com_marciogames_betacraft_android_NativeGameSurface_nativeSendInput(
+        JNIEnv *env, jclass clazz, jint type, jint action, jint code, jfloat x, jfloat y) {
+    (void) env; (void) clazz;
+    pthread_mutex_lock(&input_mutex);
+    unsigned int next = (input_write + 1U) % INPUT_QUEUE_CAPACITY;
+    if (next == input_read) input_read = (input_read + 1U) % INPUT_QUEUE_CAPACITY;
+    input_queue[input_write].type = type;
+    input_queue[input_write].action = action;
+    input_queue[input_write].code = code;
+    input_queue[input_write].x = isfinite(x) ? x : 0.0f;
+    input_queue[input_write].y = isfinite(y) ? y : 0.0f;
+    input_write = next;
+    pthread_mutex_unlock(&input_mutex);
+}
+
+JNIEXPORT jfloatArray JNICALL
+Java_com_marciogames_betacraft_android_NativeGameSurface_nativePollInput(
+        JNIEnv *env, jclass clazz) {
+    (void) clazz;
+    InputEvent event;
+    pthread_mutex_lock(&input_mutex);
+    if (input_read == input_write) {
+        pthread_mutex_unlock(&input_mutex);
+        return NULL;
+    }
+    event = input_queue[input_read];
+    input_read = (input_read + 1U) % INPUT_QUEUE_CAPACITY;
+    pthread_mutex_unlock(&input_mutex);
+    jfloat values[5] = {(jfloat)event.type, (jfloat)event.action,
+                        (jfloat)event.code, event.x, event.y};
+    jfloatArray result = (*env)->NewFloatArray(env, 5);
+    if (result) (*env)->SetFloatArrayRegion(env, result, 0, 5, values);
+    return result;
 }
 
 JNIEXPORT jboolean JNICALL
