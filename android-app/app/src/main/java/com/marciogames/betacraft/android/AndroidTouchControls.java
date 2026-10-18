@@ -73,12 +73,14 @@ final class AndroidTouchControls extends View {
         int index = event.getActionIndex();
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
             if (activePointer != -1) return true;
-            activePointer = event.getPointerId(index);
             downX = event.getX(index);
             downY = event.getY(index);
             int key = hitKey(downX, downY);
+            boolean mouseHit = hit(downX, downY, 0.72f, 0.76f, 0.10f);
+            if (key == 0 && !mouseHit) return false;
+            activePointer = event.getPointerId(index);
             if (key != 0) { activeKey = key; sink.key(key, 0, true); }
-            else if (hit(downX, downY, 0.72f, 0.76f, 0.10f)) { activeMouse = true; sink.mouseButton(0, true); }
+            else { activeMouse = true; sink.mouseButton(0, true); }
             invalidate();
             return true;
         }
