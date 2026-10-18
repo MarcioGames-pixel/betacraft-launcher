@@ -3,6 +3,8 @@ package org.betacraft.launcher.android;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.net.Uri;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -23,6 +25,11 @@ import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.security.MessageDigest;
 import java.util.Properties;
 import java.net.HttpURLConnection;
@@ -67,6 +74,8 @@ public final class MainActivity extends Activity {
     private final ExecutorService catalogExecutor = Executors.newSingleThreadExecutor();
     private String catalogStatus = "Catalog not loaded";
     private String versionSearch = "";
+    private static final int PICK_RUNTIME_ARCHIVE = 7401;
+    private volatile String runtimeStatus = "No imported Java runtime";
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -86,6 +95,14 @@ public final class MainActivity extends Activity {
         if (!hasInstance(activeInstance)) activeInstance = instances.get(0)[0];
         showTab("Launcher");
         refreshVersionCatalog();
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_RUNTIME_ARCHIVE && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri uri = data.getData();
+            catalogExecutor.execute(() -> importRuntimeArchive(uri));
+        }
     }
 
     @Override protected void onDestroy() {
@@ -447,7 +464,8 @@ public final class MainActivity extends Activity {
         card("Active instance", activeInstance);
         card("Selected version", selectedVersion);
         card("Storage", getFilesDir().getAbsolutePath());
-        card("Compatibility", "Minimum Android 6.0. Game rendering is not enabled in this preview.");
+        card("Java runtime", runtimeStatus);
+        card("Compatibility", "Import a Java 8 ARM64 runtime archive intended for Android. Desktop Java distributions usually will not run on Android.");
         content.addView(button("Manage instances", false, v -> showInstanceManager()),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 8);
@@ -459,6 +477,153 @@ public final class MainActivity extends Activity {
         }), new LinearLayout.LayoutParams(-1, -2));
     }
 
+    private File runtimeRoot() {
+        return new File(getFilesDir(), "betacraft/runtime");
+    }
+
+    private File runtimeJava() {
+        File root = runtimeRoot();
+        File direct = new File(root, "bin/java");
+        if (direct.isFile()) return direct;
+        File jre = new File(root, "jre/bin/java");
+        if (jre.isFile()) return jre;
+        return direct;
+    }
+
+    private void chooseRuntimeArchive() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(intent, PICK_RUNTIME_ARCHIVE);
+        } catch (Exception ex) {
+            Toast.makeText(this, "No file picker available", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void importRuntimeArchive(Uri uri) {
+        File base = new File(getFilesDir(), "betacraft");
+        File staging = new File(base, "runtime-importing");
+        File target = runtimeRoot();
+        try {
+            if (!base.exists() && !base.mkdirs()) throw new java.io.IOException("Cannot create app runtime directory");
+            deleteTree(staging);
+            if (!staging.mkdirs()) throw new java.io.IOException("Cannot create staging directory");
+            int entries = 0;
+            long expanded = 0;
+            try (InputStream raw = getContentResolver().openInputStream(uri);
+                 ZipInputStream zip = new ZipInputStream(new BufferedInputStream(raw))) {
+                if (raw == null) throw new java.io.IOException("Cannot read selected archive");
+                ZipEntry entry;
+                byte[] buffer = new byte[16384];
+                while ((entry = zip.getNextEntry()) != null) {
+                    if (++entries > 30000) throw new java.io.IOException("Archive has too many entries");
+                    String name = entry.getName();
+                    if (name == null || name.startsWith("/") || name.contains("\\") || name.matches("^[A-Za-z]:.*"))
+                        throw new java.io.IOException("Unsafe path in runtime archive");
+                    File output = new File(staging, name);
+                    String canonicalRoot = staging.getCanonicalPath() + File.separator;
+                    if (!output.getCanonicalPath().startsWith(canonicalRoot) && !output.getCanonicalPath().equals(staging.getCanonicalPath()))
+                        throw new java.io.IOException("Archive path escapes runtime folder");
+                    if (entry.isDirectory()) {
+                        if (!output.exists() && !output.mkdirs()) throw new java.io.IOException("Cannot create folder " + name);
+                    } else {
+                        File parent = output.getParentFile();
+                        if (!parent.exists() && !parent.mkdirs()) throw new java.io.IOException("Cannot create runtime subfolder");
+                        try (FileOutputStream out = new FileOutputStream(output)) {
+                            int count;
+                            while ((count = zip.read(buffer)) != -1) {
+                                expanded += count;
+                                if (expanded > 1024L * 1024L * 1024L) throw new java.io.IOException("Expanded archive exceeds 1 GiB safety limit");
+                                out.write(buffer, 0, count);
+                            }
+                        }
+                    }
+                    zip.closeEntry();
+                }
+            }
+            File javaBin = findRuntimeJava(staging, 0);
+            if (javaBin == null) throw new java.io.IOException("No bin/java found. Choose a Java runtime archive, not a launcher APK or source ZIP.");
+            if (!javaBin.setExecutable(true, true) && !javaBin.canExecute())
+                throw new java.io.IOException("Java binary is not executable in app storage");
+            File runtimeDir = javaBin.getParentFile().getParentFile();
+            File normalized = new File(base, "runtime-ready");
+            deleteTree(normalized);
+            if (!runtimeDir.renameTo(normalized)) throw new java.io.IOException("Could not stage runtime root");
+            deleteTree(target);
+            if (!normalized.renameTo(target)) throw new java.io.IOException("Could not install runtime folder");
+            runtimeStatus = "Imported • " + runtimeJava().getAbsolutePath();
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Runtime imported. Run Test Java runtime next.", Toast.LENGTH_LONG).show();
+                if ("Settings".equals(selectedTab) || "Console".equals(selectedTab)) showTab(selectedTab);
+            });
+        } catch (Exception ex) {
+            deleteTree(staging);
+            final String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+            runtimeStatus = "Import failed: " + message;
+            runOnUiThread(() -> new AlertDialog.Builder(this).setTitle("Runtime import failed")
+                    .setMessage(message).setPositiveButton("OK", null).show());
+        }
+    }
+
+    private File findRuntimeJava(File directory, int depth) {
+        if (directory == null || depth > 6) return null;
+        File candidate = new File(directory, "bin/java");
+        if (candidate.isFile()) return candidate;
+        File[] children = directory.listFiles();
+        if (children == null) return null;
+        for (File child : children) {
+            if (child.isDirectory()) {
+                File found = findRuntimeJava(child, depth + 1);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private void testJavaRuntime() {
+        File java = runtimeJava();
+        if (!java.isFile()) {
+            new AlertDialog.Builder(this).setTitle("Java runtime missing")
+                    .setMessage("Import a Java 8 ARM64 runtime ZIP built for Android first. A desktop JRE ZIP is not compatible.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        catalogExecutor.execute(() -> {
+            String output;
+            try {
+                java.setExecutable(true, true);
+                Process process = new ProcessBuilder(java.getAbsolutePath(), "-version")
+                        .directory(runtimeRoot()).redirectErrorStream(true).start();
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                try (InputStream in = process.getInputStream()) {
+                    byte[] buffer = new byte[2048]; int count;
+                    while ((count = in.read(buffer)) != -1) {
+                        if (bytes.size() < 16000) bytes.write(buffer, 0, count);
+                    }
+                }
+                int code = process.waitFor();
+                output = bytes.toString("UTF-8") + "\nExit code: " + code;
+                runtimeStatus = code == 0 ? "Java smoke test passed" : "Java failed (exit " + code + ")";
+            } catch (Exception ex) {
+                output = ex.getClass().getSimpleName() + ": " + ex.getMessage()
+                        + "\nMake sure this is an Android ARM64 runtime; Android blocks incompatible desktop binaries.";
+                runtimeStatus = "Java smoke test failed";
+            }
+            final String result = output;
+            runOnUiThread(() -> new AlertDialog.Builder(this).setTitle("Java runtime test")
+                    .setMessage(result).setPositiveButton("OK", null).show());
+        });
+    }
+
+    private void deleteTree(File file) {
+        if (file == null || !file.exists()) return;
+        File[] children = file.listFiles();
+        if (children != null) for (File child : children) deleteTree(child);
+        file.delete();
+    }
+
     private void renderConsole() {
         section("Console", "Local app diagnostics");
         card("Launcher UI", "Started successfully");
@@ -466,8 +631,8 @@ public final class MainActivity extends Activity {
         card("ABI", android.os.Build.SUPPORTED_ABIS.length == 0 ? "Unknown" : android.os.Build.SUPPORTED_ABIS[0]);
         card("Instances", Integer.toString(instances.size()));
         card("Saved servers", Integer.toString(servers.size()));
-        card("Game runtime", "Not installed or connected");
-        card("Last action", "Profile and server lists are stored locally with app preferences.");
+        card("Java runtime", runtimeStatus);
+        card("Runtime path", runtimeJava().getAbsolutePath());\n        card("Last action", "Runtime import/test runs in the background. Minecraft renderer and launch bridge are separate requirements.");
     }
 
     private void showInstanceManager() {
