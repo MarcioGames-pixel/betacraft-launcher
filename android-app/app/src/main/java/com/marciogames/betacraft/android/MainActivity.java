@@ -456,6 +456,25 @@ public final class MainActivity extends Activity {
                 if (!gl4es.isFile()) {
                     throw new IllegalStateException("Launch blocked: GL4ES libGL.so is missing from this APK.");
                 }
+                // Never call JLI_Launch in-process until the same installed JVM
+                // has passed a child-process startup test. A broken AArch64 HotSpot
+                // can abort the entire app inside JNI_CreateJavaVM, before Java
+                // exceptions or the normal launch error UI can run.
+                try {
+                    AndroidJvmBridge.test(plan.javaHome);
+                } catch (Throwable runtimeFailure) {
+                    String detail = safeMessage(runtimeFailure);
+                    if (detail.contains("Field too big for insn")
+                            || detail.contains("assembler_aarch64.hpp")
+                            || detail.contains("JNI_CreateJavaVM")) {
+                        throw new IllegalStateException(
+                                "Launch stopped safely: this Java 8 ARM64 runtime crashes inside HotSpot during VM startup (AArch64 assembler error). This is a broken/incompatible libjvm.so, not a Minecraft JAR or renderer error. Reinstalling the same runtime will not fix it; the Java 8 runtime must be rebuilt with the AArch64 assembler/compiler fix.\n\n"
+                                        + detail, runtimeFailure);
+                    }
+                    throw new IllegalStateException(
+                            "Launch stopped safely because the installed Java runtime failed its separate startup test. The game JVM was not started.\n\n"
+                                    + detail, runtimeFailure);
+                }
                 String[] jliArguments = plan.toJliArguments();
                 String javaHomePath = plan.javaHome.getAbsolutePath();
                 runOnUiThread(() -> {
