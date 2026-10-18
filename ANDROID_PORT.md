@@ -22,6 +22,7 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, estimates the Java major version needed by the selected Minecraft version, and checks the runtime's `release` metadata plus expected native bridge components.
 - Adds Android ARM64 OpenJDK 8 and 17 runtime installers. Java 8 is resolved from the latest successful public Android `jre8-pojav` CI artifact (not the similarly named iOS archive); Java 17 uses the Android-specific Pojav build. The installer validates Java release metadata and confirms that `libjvm.so` and `libjli.so` are ELF64 AArch64 libraries before activating the runtime. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
 - Adds a JNI/JLI bootstrap library using Android NDK/CMake and a **Test Java runtime** action that calls OpenJDK's `JLI_Launch` entry point with `-version`. This tests the JVM bootstrap only; it does not claim Minecraft itself launches.
+- Builds the pinned PojavLauncherTeam GL4ES compatibility library (`libGL.so`) for Android through CMake/FetchContent. GL4ES translates legacy desktop OpenGL calls to OpenGL ES; it is only one part of the rendering stack and does not provide an EGL game surface, LWJGL JNI binaries, or touch controls by itself.
 
 ## Important limitations
 
@@ -31,7 +32,7 @@ Remaining work:
 1. Validate metadata formats and test launch-method downloads against the live catalogue, including versions without a launch method.
 2. Add version/profile and instance management.
 3. Test the JNI/JLI bootstrap against both published ARM64 runtimes and device Android versions. The bootstrap is implemented, but its compatibility with each runtime still needs real-device validation.
-4. Integrate a compatible rendering/input bridge (LWJGL/OpenGL compatibility) for legacy Minecraft versions and test each version separately. Java 17 is not a substitute for Java 8 on older versions.
+4. Finish renderer integration around the now-built GL4ES library: create/manage an EGL surface, load compatible LWJGL JNI binaries, connect game lifecycle and touch input, then test each version separately. Java 17 is not a substitute for Java 8 on older versions.
 5. Port authentication, changelog/server pages, addons, logging, and lifecycle/background work.
 6. Integrate a complete Minecraft launch-argument builder and connect it to the JVM bootstrap after renderer/input support is available. Build the APK in Actions and test on real Android devices.
 
