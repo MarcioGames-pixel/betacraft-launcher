@@ -440,12 +440,17 @@ public final class MainActivity extends Activity {
                 if (!gl4es.isFile()) {
                     throw new IllegalStateException("Launch blocked: GL4ES libGL.so is missing from this APK.");
                 }
-                runOnUiThread(() -> setBusy(false,
-                        "Starting " + selected + " with offline player " + player
-                                + ". Touch input/render integration is experimental."));
-                int result = AndroidJvmBridge.launch(plan.javaHome, plan.toJliArguments());
-                runOnUiThread(() -> setBusy(false, "Minecraft JVM returned with code " + result
-                        + ". See logcat (BetaCraftRuntime) for the native/JVM output."));
+                String[] jliArguments = plan.toJliArguments();
+                String javaHomePath = plan.javaHome.getAbsolutePath();
+                runOnUiThread(() -> {
+                    android.content.Intent gameIntent = new android.content.Intent(
+                            MainActivity.this, GameActivity.class);
+                    gameIntent.putExtra(GameActivity.EXTRA_JAVA_HOME, javaHomePath);
+                    gameIntent.putExtra(GameActivity.EXTRA_JLI_ARGUMENTS, jliArguments);
+                    gameIntent.putExtra(GameActivity.EXTRA_VERSION, selected);
+                    setBusy(false, "Opening Android GLFW surface for " + selected + "…");
+                    startActivity(gameIntent);
+                });
             } catch (Exception e) {
                 String message = safeMessage(e);
                 runOnUiThread(() -> setBusy(false, message));
