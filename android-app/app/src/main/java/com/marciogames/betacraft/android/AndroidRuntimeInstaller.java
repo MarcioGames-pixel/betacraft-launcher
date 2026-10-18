@@ -180,7 +180,7 @@ final class AndroidRuntimeInstaller {
                         && !item.optBoolean("expired", true)) {
                     String url = item.optString("archive_download_url", "");
                     if (url.startsWith("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/artifacts/")) {
-                        return url + "/zip";
+                        return url;
                     }
                 }
             }
