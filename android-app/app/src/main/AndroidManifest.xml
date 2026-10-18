@@ -11,6 +11,7 @@
         <activity android:name=".InstancesActivity" android:exported="false" />
         <activity android:name=".LauncherSettingsActivity" android:exported="false" />
         <activity android:name=".ServerListActivity" android:exported="false" />
+        <activity android:name=".LauncherFilesActivity" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
