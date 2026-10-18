@@ -8,7 +8,7 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity android:name=".RendererTestActivity" android:exported="false" />
-        <activity android:name=".GameActivity" android:exported="false" android:screenOrientation="sensorLandscape" />
+        <activity android:name=".GameActivity" android:exported="false" android:process=":game" android:screenOrientation="sensorLandscape" />
         <activity android:name=".InstancesActivity" android:exported="false" />
         <activity android:name=".LauncherSettingsActivity" android:exported="false" />
         <activity android:name=".ServerListActivity" android:exported="false" />
