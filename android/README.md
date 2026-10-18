@@ -1,34 +1,35 @@
 # BetaCraft Launcher for Android (work in progress)
 
-This is a separate Android application project. The original v1 desktop build and its files are intentionally preserved.
+The Android app is being added alongside the original v1 desktop launcher. The existing Windows/desktop source and build are preserved.
 
 ## Build the APK
 
-From this directory, using JDK 17 and Android SDK platform/build-tools 35:
+Use JDK 17 and Android SDK platform/build-tools 35:
 
 ```sh
 gradle assembleDebug
 ```
 
-The APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions builds the Android project independently; open the Android APK workflow and download the `betacraft-android-debug-apk` artifact after a successful run.
 
-GitHub Actions also builds this Android project independently of the legacy desktop build.
+## Implemented in the current Android preview
 
-## Current state
+- Native Android UI with Launcher, Versions, Servers, Settings and Console tabs.
+- Saves the selected version and active profile.
+- Create and remove named game profiles; each profile remembers its selected version.
+- Save server names and addresses locally, copy an address to the clipboard, and remove saved servers.
+- Console diagnostics for Android API, device ABI, profile count and saved server count.
+- The original desktop Java source tree remains unchanged.
 
-- Android manifest and installable Activity scaffold.
-- Mobile UI with Launcher, Versions, Servers, Settings and Console sections.
-- Persists the selected version locally.
-- The original desktop Java source tree remains untouched.
+## Not yet a playable port
 
-## Work still required before this is a playable port
+This is not yet equivalent to the full desktop launcher. The original v1 uses Swing/AWT, desktop image APIs, and a desktop process/JVM launch path that Android cannot run unchanged.
 
-The v1 desktop launcher depends on Swing/AWT, desktop image APIs, and process/JVM launching assumptions that Android does not provide directly. The UI in this first milestone is a mobile adaptation, not yet a drop-in rendering of the original Swing windows.
+Still required:
 
-- Port the original launcher views and their actions while matching the desktop visual style as closely as practical.
-- Replace Swing/AWT dependencies and file/path assumptions with Android equivalents.
-- Connect the original version metadata, authentication, server browser, downloads, instances, mods and configuration.
-- Integrate an ARM64-compatible Java runtime and Minecraft renderer/input layer.
-- Test game versions and fix compatibility issues before describing the APK as playable.
+- Replace remaining desktop-only dependencies and match the original UI and behavior more closely.
+- Connect the original live version metadata/catalog, downloads, authentication, real server ping/join, mods/add-ons and configuration.
+- Integrate an ARM64-compatible Java runtime, native libraries, LWJGL compatibility, GL4ES/OpenGL rendering, audio and touch/keyboard input.
+- Implement and test the actual game launch bridge and legacy Minecraft versions on devices.
 
-Do not remove or replace the original desktop build while the Android port is in progress.
+Version selection and server/profile storage in this preview do not download game files or start Minecraft. Do not describe this APK as playable until the runtime and launch flow are implemented and tested.
