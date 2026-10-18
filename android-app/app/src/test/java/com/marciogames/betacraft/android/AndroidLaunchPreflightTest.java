@@ -91,6 +91,8 @@ public class AndroidLaunchPreflightTest {
             assertTrue(report.contains("no live Minecraft LWJGL event loop is consuming the queue yet"));
             assertTrue(report.contains("Android GLFW backend (libglfw.so)"));
             assertTrue(report.contains("AWT compatibility native library (libjawt.so)"));
+            assertTrue(report.contains("live Minecraft renderer"));
+            assertTrue(report.contains("LWJGL context is not attached to the Android SurfaceView"));
             assertTrue(report.contains("NOT READY TO LAUNCH"));
         } finally {
             File[] children = root.listFiles();
