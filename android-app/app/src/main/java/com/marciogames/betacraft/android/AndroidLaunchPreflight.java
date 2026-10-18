@@ -68,16 +68,21 @@ final class AndroidLaunchPreflight {
         lines.add((compatJarReady ? "OK" : "MISSING")
                 + " — bundled Android LWJGL compatibility JAR");
         lines.add("PARTIAL — Android input queue and touch controls exist, but no live Minecraft LWJGL event loop is consuming the queue yet");
-        lines.add("MISSING — complete version-specific dependency/asset resolution and game-backed EGL/GLFW surface integration");
+        // Keep this gate closed until LWJGL creates its context on the Android SurfaceView
+        // and the real Minecraft render/input loop owns that context. The EGL smoke test above
+        // runs on a separate native thread and must never be treated as game rendering.
+        boolean gameRendererReady = false;
+        lines.add("MISSING — live Minecraft renderer: LWJGL context is not attached to the Android SurfaceView");
+        lines.add("MISSING — version-specific dependency/asset resolution and live input event pump");
 
-        boolean ready = jarReady && metadataReady && launchMethodReady && androidAdapterReady
+        boolean ready = gameRendererReady && jarReady && metadataReady && launchMethodReady && androidAdapterReady
                 && abiReady && jvmReady && jliReady && runtimeVersionReady
                 && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady
                 && glfwReady && jawtReady && compatJarReady;
         lines.add("");
         lines.add(ready
-                ? "Base runtime checks passed, but LWJGL input consumption, full dependency resolution and device testing are still required."
-                : "NOT READY TO LAUNCH: one or more required Android game-engine components are missing.");
+                ? "READY — required game runtime and renderer checks passed."
+                : "NOT READY TO LAUNCH: real Minecraft rendering/input integration is incomplete or required components are missing.");
         return join(lines);
     }
 
