@@ -42,6 +42,13 @@ Remaining work:
 
 A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
 
+
+### Legacy applet adapter groundwork
+
+`AndroidAppletLaunchAdapter` now scans the selected JAR for a `MinecraftApplet.class` in any package and builds a validated launch descriptor with the discovered class name, JAR URL, game directory, dimensions, and baseline offline applet parameters (`username`, `sessionid`, `haspaid`, `standalone`, `demo`, `fullscreen`, `version`). Its unit test uses a nonstandard package (`com.example.old.MinecraftApplet`) to prevent regression to hard-coded package paths.
+
+This is intentionally a planning adapter, not a claim of playable applet support. It does not instantiate the applet or call `init()`/`start()`: the separate JLI JVM still needs a JVM-side bootstrap JAR, and AWT applet components need a compatible Android rendering/container strategy. The launcher must continue refusing to launch applet-only versions until those pieces are wired together.
+
 ### LWJGL input adapter groundwork
 
 `AndroidLwjglInputAdapter` now contains tested Android-key-to-GLFW mappings, normalized touch-to-cursor/left-click conversion, and a reflective adapter for the Pojav-style `org.lwjgl.glfw.CallbackBridge` API. This is an adapter component only: the compatibility classes are not bundled into this APK and the separate JVM launched through JLI cannot see the Android app's class loader. Therefore this does **not** yet connect controls to Minecraft. The next required work is to bundle/build the matching LWJGL compatibility layer and run its input pump inside the launched game JVM, then replace the EGL smoke test with that backend's real render surface.
