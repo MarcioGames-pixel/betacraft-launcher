@@ -94,8 +94,10 @@ public class AndroidGameLaunchPlanTest {
             File data = new File(temp, "data");
             File versions = new File(data, "versions");
             assertTrue(versions.mkdirs());
-            createJar(new File(versions, "1.5.2.jar"), null,
-                    "net/minecraft/client/MinecraftApplet.class");
+            File appletJar = new File(versions, "1.5.2.jar");
+            createJar(appletJar, null, "net/minecraft/client/MinecraftApplet.class");
+            assertEquals("net.minecraft.client.MinecraftApplet",
+                    AndroidLaunchMethodDetector.detectAppletClass(appletJar));
             try {
                 AndroidGameLaunchPlan.prepare(data, new File(temp, "native"),
                         "1.5.2", "Player", "");
