@@ -432,9 +432,25 @@ public final class MainActivity extends Activity {
                 File glfw = findNamedFile(packagedNatives, "libglfw.so");
                 File jawt = findNamedFile(packagedNatives, "libjawt.so");
                 if (lwjgl == null || glfw == null || jawt == null) {
+                    StringBuilder packaged = new StringBuilder();
+                    File[] nativeFiles = packagedNatives.listFiles();
+                    if (nativeFiles != null) {
+                        for (File nativeFile : nativeFiles) {
+                            if (nativeFile.isFile() && nativeFile.getName().endsWith(".so")) {
+                                if (packaged.length() > 0) packaged.append(", ");
+                                packaged.append(nativeFile.getName());
+                            }
+                        }
+                    }
+                    String abi = android.os.Build.SUPPORTED_ABIS.length == 0
+                            ? "unknown" : android.os.Build.SUPPORTED_ABIS[0];
                     throw new IllegalStateException(plan.describe()
-                            + "\n\nLaunch blocked: the Android ARM64 LWJGL 2 backend is incomplete. "
-                            + "Expected liblwjgl64.so, libglfw.so and libjawt.so in this APK.");
+                            + "\n\nLaunch blocked: this installed APK cannot see all ARM64 LWJGL files."
+                            + "\nDevice ABI: " + abi
+                            + "\nNative library directory: " + packagedNatives.getAbsolutePath()
+                            + "\nLibraries found: " + (packaged.length() == 0 ? "(none)" : packaged)
+                            + "\nRequired: liblwjgl64.so, libglfw.so, libjawt.so."
+                            + "\nInstall the newest betacraft-android-debug artifact from the Android APK workflow; an older APK does not contain the backend.");
                 }
                 File gl4es = new File(getApplicationInfo().nativeLibraryDir, "libGL.so");
                 if (!gl4es.isFile()) {
