@@ -47,6 +47,10 @@ final class AndroidLwjglInputAdapter {
         int type = Math.round(event[0]);
         int action = Math.round(event[1]);
         int code = Math.round(event[2]);
+        if (type == NativeGameSurface.INPUT_MOUSE && action == 8) {
+            sink.scroll(event[3], event[4]);
+            return;
+        }
         float x = clamp(event[3]) * Math.max(1, pixelWidth);
         float y = clamp(event[4]) * Math.max(1, pixelHeight);
         if (type == NativeGameSurface.INPUT_KEY) {
@@ -59,11 +63,13 @@ final class AndroidLwjglInputAdapter {
         } else if (type == NativeGameSurface.INPUT_MOUSE) {
             sink.cursor(x, y);
             int buttons = code;
-            boolean down = action == 0 || action == 5;
-            if (buttons == 1) sink.mouseButton(0, down);
-            else if (buttons == 2) sink.mouseButton(2, down);
-            else if (buttons == 4) sink.mouseButton(1, down);
-            else if (action == 8) sink.scroll(0, 1);
+            boolean down;
+            if (action == 11 || action == 0 || action == 5) down = true;
+            else if (action == 12 || action == 1 || action == 6) down = false;
+            else return;
+            if ((buttons & 1) != 0) sink.mouseButton(0, down);
+            if ((buttons & 2) != 0) sink.mouseButton(2, down);
+            if ((buttons & 4) != 0) sink.mouseButton(1, down);
         }
     }
 
