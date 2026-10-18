@@ -40,3 +40,7 @@ Remaining work:
 6. Complete argument/authentication and asset resolution for the selected version, then run the JVM path end-to-end after the Android LWJGL/input backend is present. Build the APK in Actions and test on real Android devices.
 
 A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
+
+### LWJGL input adapter groundwork
+
+`AndroidLwjglInputAdapter` now contains tested Android-key-to-GLFW mappings, normalized touch-to-cursor/left-click conversion, and a reflective adapter for the Pojav-style `org.lwjgl.glfw.CallbackBridge` API. This is an adapter component only: the compatibility classes are not bundled into this APK and the separate JVM launched through JLI cannot see the Android app's class loader. Therefore this does **not** yet connect controls to Minecraft. The next required work is to bundle/build the matching LWJGL compatibility layer and run its input pump inside the launched game JVM, then replace the EGL smoke test with that backend's real render surface.
