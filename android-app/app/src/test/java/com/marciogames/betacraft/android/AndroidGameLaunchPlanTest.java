@@ -58,6 +58,37 @@ public class AndroidGameLaunchPlanTest {
         }
     }
 
+    @Test public void preparesStandaloneCaveGameWithoutModernArguments() throws Exception {
+        File temp = Files.createTempDirectory("betacraft-cave-game").toFile();
+        try {
+            File data = new File(temp, "data");
+            File versions = new File(data, "versions");
+            assertTrue(versions.mkdirs());
+            File jar = new File(versions, "rd-132211");
+            jar = new File(versions, "rd-132211.jar");
+            createJar(jar, null, "com/mojang/rubydung/RubyDung.class");
+
+            File runtime = new File(data, "runtime/java8");
+            runtime.mkdirs();
+            write(new File(runtime, "release"), "JAVA_VERSION=\"1.8.0\"\\n");
+            write(new File(runtime, "libjli.so"), "test");
+            write(new File(runtime, "libjvm.so"), "test");
+            File nativeDir = new File(temp, "native");
+            assertTrue(nativeDir.mkdirs());
+
+            AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(
+                    data, nativeDir, "rd-132211", "Player", "");
+            assertEquals("com.mojang.rubydung.RubyDung", plan.mainClass);
+            assertEquals(plan.mainClass, plan.gameArguments.get(0));
+            assertFalse("Cave Game does not accept modern Minecraft CLI flags",
+                    plan.gameArguments.contains("--username"));
+            assertTrue(plan.jvmArguments.contains("-Dbetacraft.gameDirectory="
+                    + plan.gameDirectory.getAbsolutePath()));
+        } finally {
+            deleteTree(temp);
+        }
+    }
+
     @Test public void rejectsAppletOnlyVersionInsteadOfPassingWrongArguments() throws Exception {
         File temp = Files.createTempDirectory("betacraft-applet-launch").toFile();
         try {
