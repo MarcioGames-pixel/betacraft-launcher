@@ -58,6 +58,11 @@ android {
     // dependency happens to contribute a same-named library.
     packaging {
         jniLibs {
+            // LWJGL 2 and the embedded JVM locate native libraries through
+            // java.library.path and ApplicationInfo.nativeLibraryDir. Newer
+            // AGP defaults can leave JNI libraries unextracted in the APK,
+            // making filesystem checks fail even when the ZIP contains them.
+            useLegacyPackaging = true
             pickFirsts += [
                 'lib/arm64-v8a/libglfw.so',
                 'lib/armeabi-v7a/libglfw.so',
