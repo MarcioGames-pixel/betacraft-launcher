@@ -69,7 +69,7 @@ jobs:
           cp "$LWJGL/platform_build/glfw-android/arm64-v8a/libglfw.so" android-app/app/src/main/jniLibs/arm64-v8a/
           cp "$LWJGL/platform_build/glfw-android/arm64-v8a/libjawt.so" android-app/app/src/main/jniLibs/arm64-v8a/
           file android-app/app/src/main/jniLibs/arm64-v8a/*.so
-          llvm-readelf -h android-app/app/src/main/jniLibs/arm64-v8a/liblwjgl64.so | grep -q 'AArch64'
+          "$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -h android-app/app/src/main/jniLibs/arm64-v8a/liblwjgl64.so | grep -q 'AArch64'
 
       - name: Run Android unit tests and build debug APK
         run: gradle -p android-app :app:testDebugUnitTest :app:assembleDebug
