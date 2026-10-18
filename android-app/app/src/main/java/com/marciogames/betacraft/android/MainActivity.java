@@ -414,6 +414,7 @@ public final class MainActivity extends Activity {
         io.execute(() -> {
             try {
                 installBundledLwjglCompatibility();
+                installBundledLegacyAppletHost();
                 int preferredRamMb = getSharedPreferences(PREFS, MODE_PRIVATE)
                         .getInt("preferred_ram_mb", 1536);
                 preferredRamMb = Math.max(512, Math.min(4096, preferredRamMb));
@@ -446,6 +447,45 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> setBusy(false, message));
             }
         });
+    }
+
+    private void installBundledLegacyAppletHost() throws Exception {
+        File directory = new File(new File(new File(dataRoot, "launcher"),
+                "components"), "legacy-applet-host");
+        if (!directory.isDirectory() && !directory.mkdirs()) {
+            throw new IllegalStateException("Could not create the legacy applet host directory.");
+        }
+        File target = new File(directory, "legacy-applet-host.jar");
+        if (target.isFile() && target.length() > 1000) return;
+        File temporary = new File(directory, "legacy-applet-host.jar.part");
+        try (InputStream input = getAssets().open("legacy-applet/legacy-applet-host.jar");
+             FileOutputStream output = new FileOutputStream(temporary)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            output.getFD().sync();
+        } catch (Exception e) {
+            temporary.delete();
+            throw new IllegalStateException("The JVM legacy applet host is not bundled. Rebuild the APK with the legacy applet host task enabled.", e);
+        }
+        if (temporary.length() < 1000) {
+            temporary.delete();
+            throw new IllegalStateException("The bundled legacy applet host JAR is incomplete.");
+        }
+        if (target.exists() && !target.delete()) {
+            temporary.delete();
+            throw new IllegalStateException("Could not replace the previous legacy applet host JAR.");
+        }
+        if (!temporary.renameTo(target)) {
+            try (InputStream input = new FileInputStream(temporary);
+                 FileOutputStream output = new FileOutputStream(target)) {
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                output.getFD().sync();
+            }
+            temporary.delete();
+        }
     }
 
     private void installBundledLwjglCompatibility() throws Exception {
