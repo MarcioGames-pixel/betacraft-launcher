@@ -13,8 +13,8 @@ import java.util.jar.JarFile;
  * Honest preflight checks for the future Android game runtime.
  *
  * Performs a preflight of downloaded game files and Android runtime components.
- * The JNI JVM bootstrap can run a JVM self-test, but Minecraft launch remains
- * blocked until the renderer and touch-input integration are packaged and tested.
+ * The JNI JVM bootstrap can run a JVM self-test and an EGL surface smoke test, but Minecraft launch remains
+ * blocked until LWJGL JNI, game input, libraries/assets and the actual game loop are integrated.
  */
 final class AndroidLaunchPreflight {
     private AndroidLaunchPreflight() { }
@@ -44,16 +44,23 @@ final class AndroidLaunchPreflight {
         boolean gl4esReady = new File(nativeLibraryDir, "libGL.so").isFile();
         lines.add((gl4esReady ? "OK" : "MISSING")
                 + " — GL4ES desktop OpenGL compatibility library (libGL.so; required for legacy LWJGL, but not a complete renderer)");
-        boolean rendererReady = new File(nativeLibraryDir, "libbetacraft_renderer.so").isFile();
-        lines.add((rendererReady ? "OK" : "MISSING")
-                + " — Android game-surface/input bridge (libbetacraft_renderer.so)");
+        boolean surfaceTestReady = new File(nativeLibraryDir, "libbetacraft_renderer.so").isFile();
+        lines.add((surfaceTestReady ? "OK" : "MISSING")
+                + " — EGL surface smoke-test library (libbetacraft_renderer.so; does not render Minecraft)");
+        File librariesDir = new File(dataRoot, "libraries");
+        boolean lwjglReady = containsNamedFile(librariesDir, "liblwjgl.so")
+                || containsNamedFile(librariesDir, "liblwjgl64.so");
+        lines.add((lwjglReady ? "OK" : "MISSING")
+                + " — LWJGL JNI native library (required by the selected game version)");
+        lines.add("MISSING — Minecraft input bridge (keyboard, mouse and touch events are not connected to LWJGL)");
+        lines.add("MISSING — version-specific libraries/assets and complete game launch arguments are not yet assembled");
 
         boolean ready = jarReady && metadataReady && launchMethodReady && abiReady && jvmReady && jliReady
-                && runtimeVersionReady && launchBridgeReady && rendererReady;
+                && runtimeVersionReady && launchBridgeReady && gl4esReady && surfaceTestReady && lwjglReady;
         lines.add("");
         lines.add(ready
-                ? "Preflight complete. The actual game launch still needs testing."
-                : "NOT READY TO LAUNCH: required Android game-engine components are still missing.");
+                ? "Base runtime checks passed, but game input and complete launch assembly still need implementation and device testing."
+                : "NOT READY TO LAUNCH: one or more required Android game-engine components are missing.");
         return join(lines);
     }
 
