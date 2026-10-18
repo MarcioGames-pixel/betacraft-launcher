@@ -9,17 +9,23 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Android entry point for the BetaCraft mobile adaptation.
- *
- * This first milestone deliberately keeps the desktop source tree untouched.
- * Desktop Swing/AWT classes cannot run directly in Android's framework, so
- * mobile UI and the game/runtime bridge must be adapted separately.
+ * Native Android front end for BetaCraft Launcher v1.
+ * The desktop Swing entry points stay untouched; the runtime bridge is a
+ * separate milestone because Android cannot execute the desktop ProcessBuilder
+ * + AWT/LWJGL path directly.
  */
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(25, 29, 36);
@@ -27,18 +33,36 @@ public final class MainActivity extends Activity {
     private static final int BLUE = Color.rgb(55, 133, 220);
     private static final int TEXT = Color.rgb(238, 241, 246);
     private static final int MUTED = Color.rgb(166, 176, 190);
+
+    private static final String[] VERSIONS = {
+        "c0.0.15a", "rd-132211", "rd-160052", "inf-20100618",
+        "a1.1.2_01", "b1.7.3", "1.0", "1.2.5", "1.5.2"
+    };
+
     private LinearLayout content;
+    private SharedPreferences preferences;
     private String selectedVersion = "b1.7.3";
     private String selectedTab = "Launcher";
-    private SharedPreferences preferences;
+    private String activeInstance = "Default";
+    private boolean newestFirst = false;
+    private final List<String[]> instances = new ArrayList<>();
+    private final List<String[]> servers = new ArrayList<>();
 
-    @Override
-    public void onCreate(Bundle state) {
+    @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
         preferences = getSharedPreferences("betacraft-mobile", MODE_PRIVATE);
         selectedVersion = preferences.getString("version", "b1.7.3");
+        activeInstance = preferences.getString("active_instance", "Default");
+        newestFirst = preferences.getBoolean("newest_first", false);
+        loadPairs("instances", instances);
+        loadPairs("servers", servers);
+        if (instances.isEmpty()) {
+            instances.add(new String[]{"Default", selectedVersion});
+            savePairs("instances", instances);
+        }
+        if (!hasInstance(activeInstance)) activeInstance = instances.get(0)[0];
         showTab("Launcher");
     }
 
@@ -88,12 +112,10 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(BG);
 
         LinearLayout header = column();
-        pad(header, 20, 16, 20, 14);
+        pad(header, 20, 14, 20, 12);
         header.setBackgroundColor(PANEL);
-        TextView brand = text("BetaCraft", 25, TEXT, true);
-        header.addView(brand);
-        TextView subtitle = text("LEGACY MINECRAFT LAUNCHER", 11, MUTED, true);
-        header.addView(subtitle);
+        header.addView(text("BetaCraft", 25, TEXT, true));
+        header.addView(text("LEGACY MINECRAFT LAUNCHER", 11, MUTED, true));
         root.addView(header);
 
         LinearLayout nav = new LinearLayout(this);
@@ -103,12 +125,13 @@ public final class MainActivity extends Activity {
         for (String item : tabs) {
             Button b = new Button(this);
             b.setText(item);
-            b.setTextSize(11);
+            b.setTextSize(10);
             b.setAllCaps(false);
+            b.setPadding(dp(2), 0, dp(2), 0);
             b.setTextColor(item.equals(tab) ? Color.WHITE : MUTED);
             b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(item.equals(tab) ? BLUE : PANEL));
             b.setOnClickListener(v -> showTab(item));
-            nav.addView(b, new LinearLayout.LayoutParams(0, dp(48), 1));
+            nav.addView(b, new LinearLayout.LayoutParams(0, dp(46), 1));
         }
         root.addView(nav);
 
@@ -127,8 +150,7 @@ public final class MainActivity extends Activity {
     }
 
     private void section(String title, String detail) {
-        TextView heading = text(title, 19, TEXT, true);
-        content.addView(heading);
+        content.addView(text(title, 19, TEXT, true));
         if (detail != null) {
             TextView sub = text(detail, 13, MUTED, false);
             pad(sub, 0, 3, 0, 0);
@@ -152,59 +174,239 @@ public final class MainActivity extends Activity {
     }
 
     private void renderLauncher() {
-        section("Play Minecraft", "Choose a legacy version and manage your game instances.");
-        card("Selected version", selectedVersion);
+        String[] current = getInstance(activeInstance);
+        if (current != null) selectedVersion = current[1];
+        section("Play Minecraft", "Choose a legacy version and manage separate game profiles.");
+        card("Active instance", activeInstance + "  •  " + selectedVersion);
+        content.addView(button("Manage instances", false, v -> showInstanceManager()),
+                new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
         content.addView(button("Choose version", false, v -> showTab("Versions")),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 8);
         content.addView(button("Launch game", true, v -> new AlertDialog.Builder(this)
-                .setTitle("Android runtime not connected")
-                .setMessage("The mobile launcher interface is in place, but the Minecraft runtime and desktop launcher bridge still need Android-specific implementation. No game has been started.")
+                .setTitle("Runtime not connected")
+                .setMessage("The Android profile and launcher UI are working, but Minecraft still needs the ARM64 Java runtime, LWJGL/GL4ES renderer, native libraries and Android launch bridge. The game has not been started.")
                 .setPositiveButton("OK", null).show()),
                 new LinearLayout.LayoutParams(-1, -2));
         addGap(content, 18);
         section("Launcher status", null);
-        card("Android preview", "The original desktop source and its build remain unchanged.");
-        card("Next integration step", "Replace Swing/AWT entry points and connect an ARM64-compatible Java runtime and renderer.");
+        card("Profiles", instances.size() + " saved instance(s) on this device");
+        card("Desktop compatibility", "The original BetaCraft v1 desktop files and Windows workflow remain unchanged.");
     }
 
     private void renderVersions() {
-        section("Game versions", "Select a version for the mobile launcher profile.");
-        String[] versions = {"c0.0.15a", "rd-132211", "in-20100124", "a1.1.2_01", "b1.7.3", "1.0", "1.2.5", "1.5.2"};
-        for (String version : versions) {
-            content.addView(button((version.equals(selectedVersion) ? "✓  " : "") + version, version.equals(selectedVersion), v -> {
+        section("Game versions", "Choose a version for the active profile. The list is currently a built-in starter catalog.");
+        content.addView(button(newestFirst ? "Sort: newest first" : "Sort: oldest first", false, v -> {
+            newestFirst = !newestFirst;
+            preferences.edit().putBoolean("newest_first", newestFirst).apply();
+            showTab("Versions");
+        }), new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
+        for (int i = 0; i < VERSIONS.length; i++) {
+            final String version = VERSIONS[newestFirst ? VERSIONS.length - 1 - i : i];
+            boolean active = version.equals(selectedVersion);
+            content.addView(button((active ? "✓  " : "") + version, active, v -> {
                 selectedVersion = version;
                 preferences.edit().putString("version", version).apply();
+                setInstanceVersion(activeInstance, version);
                 Toast.makeText(this, "Selected " + version, Toast.LENGTH_SHORT).show();
                 showTab("Versions");
             }), new LinearLayout.LayoutParams(-1, -2));
         }
+        addGap(content, 10);
+        card("Important", "Selecting a version saves the profile only; game metadata and files are not downloaded yet.");
     }
 
     private void renderServers() {
-        section("Server list", "Legacy multiplayer");
-        card("Server browser", "The original live server list and protocol integrations have not yet been connected to this Android interface.");
-        content.addView(button("Refresh", false, v -> Toast.makeText(this, "Server integration is not connected yet", Toast.LENGTH_SHORT).show()),
+        section("Multiplayer servers", "Saved server addresses for quick reference.");
+        content.addView(button("Add server", true, v -> showAddServerDialog()),
                 new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 10);
+        if (servers.isEmpty()) card("No saved servers", "Tap Add server to save a server name and address.");
+        for (String[] server : new ArrayList<>(servers)) {
+            LinearLayout box = column();
+            box.setBackgroundColor(PANEL);
+            pad(box, 14, 12, 14, 12);
+            box.addView(text(server[0], 15, TEXT, true));
+            box.addView(text(server[1], 12, MUTED, false));
+            LinearLayout actions = new LinearLayout(this);
+            actions.addView(button("Copy address", false, v -> {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Minecraft server", server[1]));
+                Toast.makeText(this, "Address copied", Toast.LENGTH_SHORT).show();
+            }), new LinearLayout.LayoutParams(0, -2, 1));
+            actions.addView(button("Remove", false, v -> new AlertDialog.Builder(this)
+                    .setTitle("Remove server?")
+                    .setMessage(server[0] + " (" + server[1] + ")")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Remove", (d, w) -> {
+                        servers.remove(server);
+                        savePairs("servers", servers);
+                        showTab("Servers");
+                    }).show()), new LinearLayout.LayoutParams(0, -2, 1));
+            box.addView(actions);
+            content.addView(box);
+            addGap(content, 10);
+        }
+        card("Server connection", "Live ping, protocol detection and joining are not connected until the game runtime is integrated.");
     }
 
     private void renderSettings() {
         section("Settings", "Mobile launcher preferences");
+        card("Active instance", activeInstance);
         card("Selected version", selectedVersion);
-        card("Game directory", "App-private storage (runtime integration pending)");
-        card("Controls", "Touch controls, keyboard input and game display scaling still need to be wired into the game renderer.");
-        content.addView(button("Reset selected version", false, v -> {
+        card("Storage", getFilesDir().getAbsolutePath());
+        card("Compatibility", "Minimum Android 6.0. Game rendering is not enabled in this preview.");
+        content.addView(button("Manage instances", false, v -> showInstanceManager()),
+                new LinearLayout.LayoutParams(-1, -2));
+        addGap(content, 8);
+        content.addView(button("Reset active version", false, v -> {
             selectedVersion = "b1.7.3";
             preferences.edit().putString("version", selectedVersion).apply();
+            setInstanceVersion(activeInstance, selectedVersion);
             showTab("Settings");
         }), new LinearLayout.LayoutParams(-1, -2));
     }
 
     private void renderConsole() {
-        section("Console", "Build and runtime diagnostics");
-        card("Launcher", "Android UI started successfully.");
-        card("Runtime", "Not connected");
-        card("Game process", "Not started");
-        card("Diagnostics", "Use this screen for mobile-specific logs as the runtime bridge is implemented.");
+        section("Console", "Local app diagnostics");
+        card("Launcher UI", "Started successfully");
+        card("Android", "API " + android.os.Build.VERSION.SDK_INT + " • " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL);
+        card("ABI", android.os.Build.SUPPORTED_ABIS.length == 0 ? "Unknown" : android.os.Build.SUPPORTED_ABIS[0]);
+        card("Instances", Integer.toString(instances.size()));
+        card("Saved servers", Integer.toString(servers.size()));
+        card("Game runtime", "Not installed or connected");
+        card("Last action", "Profile and server lists are stored locally with app preferences.");
+    }
+
+    private void showInstanceManager() {
+        final String[] names = new String[instances.size() + 1];
+        for (int i = 0; i < instances.size(); i++) names[i] = instances.get(i)[0] + " — " + instances.get(i)[1];
+        names[names.length - 1] = "+ Create new instance";
+        new AlertDialog.Builder(this).setTitle("Game instances").setItems(names, (dialog, which) -> {
+            if (which == instances.size()) showCreateInstanceDialog();
+            else {
+                activeInstance = instances.get(which)[0];
+                selectedVersion = instances.get(which)[1];
+                preferences.edit().putString("active_instance", activeInstance).putString("version", selectedVersion).apply();
+                new AlertDialog.Builder(this).setTitle(activeInstance)
+                        .setMessage("Version: " + selectedVersion)
+                        .setNegativeButton("Close", null)
+                        .setPositiveButton("Delete", (d, w) -> confirmDeleteInstance(activeInstance))
+                        .show();
+                showTab("Launcher");
+            }
+        }).setNegativeButton("Close", null).show();
+    }
+
+    private void showCreateInstanceDialog() {
+        LinearLayout form = column();
+        pad(form, 20, 8, 20, 0);
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setHint("Instance name");
+        form.addView(name);
+        new AlertDialog.Builder(this).setTitle("Create instance").setView(form)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Create", (d, w) -> {
+                    String clean = name.getText().toString().trim();
+                    if (clean.isEmpty() || clean.contains("/") || clean.contains("\\") || clean.equals(".") || clean.equals("..")) {
+                        Toast.makeText(this, "Enter a valid instance name", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    if (hasInstance(clean)) {
+                        Toast.makeText(this, "That instance already exists", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    instances.add(new String[]{clean, selectedVersion});
+                    activeInstance = clean;
+                    preferences.edit().putString("active_instance", clean).putString("version", selectedVersion).apply();
+                    savePairs("instances", instances);
+                    showTab("Launcher");
+                }).show();
+    }
+
+    private void confirmDeleteInstance(String name) {
+        if (instances.size() <= 1) {
+            Toast.makeText(this, "Keep at least one instance", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Delete instance?")
+                .setMessage("Remove the saved profile '" + name + "'? This does not delete any game files.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (d, w) -> {
+                    for (int i = 0; i < instances.size(); i++) if (instances.get(i)[0].equals(name)) { instances.remove(i); break; }
+                    if (activeInstance.equals(name)) activeInstance = instances.get(0)[0];
+                    selectedVersion = getInstance(activeInstance)[1];
+                    preferences.edit().putString("active_instance", activeInstance).putString("version", selectedVersion).apply();
+                    savePairs("instances", instances);
+                    showTab("Launcher");
+                }).show();
+    }
+
+    private void showAddServerDialog() {
+        LinearLayout form = column();
+        pad(form, 20, 8, 20, 0);
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setHint("Server name");
+        form.addView(name);
+        EditText address = new EditText(this);
+        address.setSingleLine(true);
+        address.setHint("host:port (port optional)");
+        form.addView(address);
+        new AlertDialog.Builder(this).setTitle("Add server").setView(form)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (d, w) -> {
+                    String n = name.getText().toString().trim();
+                    String a = address.getText().toString().trim();
+                    if (n.isEmpty() || a.isEmpty() || a.contains(" ") || a.contains("/") || a.contains("\\")) {
+                        Toast.makeText(this, "Enter a server name and valid host:port address", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    servers.add(new String[]{n, a});
+                    savePairs("servers", servers);
+                    showTab("Servers");
+                }).show();
+    }
+
+    private boolean hasInstance(String name) { return getInstance(name) != null; }
+
+    private String[] getInstance(String name) {
+        for (String[] instance : instances) if (instance[0].equals(name)) return instance;
+        return null;
+    }
+
+    private void setInstanceVersion(String name, String version) {
+        String[] instance = getInstance(name);
+        if (instance != null) instance[1] = version;
+        savePairs("instances", instances);
+    }
+
+    private void loadPairs(String key, List<String[]> target) {
+        target.clear();
+        try {
+            JSONArray array = new JSONArray(preferences.getString(key, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject item = array.getJSONObject(i);
+                String first = item.optString("first", "").trim();
+                String second = item.optString("second", "").trim();
+                if (!first.isEmpty() && !second.isEmpty()) target.add(new String[]{first, second});
+            }
+        } catch (Exception ignored) { target.clear(); }
+    }
+
+    private void savePairs(String key, List<String[]> source) {
+        JSONArray array = new JSONArray();
+        try {
+            for (String[] pair : source) {
+                JSONObject item = new JSONObject();
+                item.put("first", pair[0]);
+                item.put("second", pair[1]);
+                array.put(item);
+            }
+            preferences.edit().putString(key, array.toString()).apply();
+        } catch (Exception ignored) { }
     }
 }
