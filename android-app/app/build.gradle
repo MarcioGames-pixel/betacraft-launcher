@@ -53,9 +53,9 @@ android {
 
     ndkVersion '27.2.12479018'
 
-    // MojoExec and the Android GLFW target both expose libglfw.so. The APK
-    // must contain a single copy for each ABI; the source-built CMake target is
-    // kept as the native build output and Gradle selects one packaged copy.
+    // The pinned lwjgl2-glfw build supplies libglfw.so alongside liblwjgl64.so
+    // and libjawt.so. Keep one packaged copy per ABI if a transitive native
+    // dependency happens to contribute a same-named library.
     packaging {
         jniLibs {
             pickFirsts += [
