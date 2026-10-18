@@ -53,27 +53,27 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
         setFocusableInTouchMode(true);
         setOnTouchListener((view, event) -> {
             if (!LIBRARY_AVAILABLE || !running) return true;
-            int action = event.getActionMasked();
-            int pointerIndex = event.getActionIndex();
-            int pointerId = event.getPointerId(pointerIndex);
+            int source = event.getSource();
             float width = Math.max(1, getWidth());
             float height = Math.max(1, getHeight());
+            float x = Math.max(0f, Math.min(1f, event.getX() / width));
+            float y = Math.max(0f, Math.min(1f, event.getY() / height));
+            if ((source & android.view.InputDevice.SOURCE_MOUSE) == android.view.InputDevice.SOURCE_MOUSE) {
+                nativeSendInput(INPUT_MOUSE, event.getActionMasked(), event.getButtonState(), x, y);
+                return true;
+            }
+            int action = event.getActionMasked();
+            int pointerIndex = event.getActionIndex();
             if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN
                     || action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_UP
                     || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL) {
                 int count = action == MotionEvent.ACTION_MOVE ? event.getPointerCount() : 1;
                 for (int n = 0; n < count; n++) {
                     int index = action == MotionEvent.ACTION_MOVE ? n : pointerIndex;
-                    float x = Math.max(0f, Math.min(1f, event.getX(index) / width));
-                    float y = Math.max(0f, Math.min(1f, event.getY(index) / height));
-                    nativeSendInput(INPUT_TOUCH, action, event.getPointerId(index), x, y);
+                    float px = Math.max(0f, Math.min(1f, event.getX(index) / width));
+                    float py = Math.max(0f, Math.min(1f, event.getY(index) / height));
+                    nativeSendInput(INPUT_TOUCH, action, event.getPointerId(index), px, py);
                 }
-                return true;
-            }
-            if (event.getSource() == android.view.InputDevice.SOURCE_MOUSE) {
-                nativeSendInput(INPUT_MOUSE, action, event.getButtonState(),
-                        Math.max(0f, Math.min(1f, event.getX() / width)),
-                        Math.max(0f, Math.min(1f, event.getY() / height)));
                 return true;
             }
             return true;
