@@ -87,7 +87,9 @@ public class AndroidLaunchPreflightTest {
             assertTrue(report.contains("EGL surface smoke-test library"));
             assertTrue(report.contains("does not render Minecraft"));
             assertTrue(report.contains("LWJGL JNI native library"));
-            assertTrue(report.contains("Minecraft input bridge"));
+            assertTrue(report.contains("Android input queue and touch controls exist"));
+            assertTrue(report.contains("Android GLFW backend (libglfw.so)"));
+            assertTrue(report.contains("AWT compatibility native library (libjawt.so)"));
             assertTrue(report.contains("NOT READY TO LAUNCH"));
         } finally {
             File[] children = root.listFiles();
