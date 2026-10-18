@@ -416,8 +416,11 @@ public final class MainActivity extends Activity {
                 AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(dataRoot,
                         new File(getApplicationInfo().nativeLibraryDir), selected, player, instanceId);
                 File libraries = new File(dataRoot, "libraries");
+                File packagedNatives = new File(getApplicationInfo().nativeLibraryDir);
                 File lwjgl = findNamedFile(libraries, "liblwjgl.so");
+                if (lwjgl == null) lwjgl = findNamedFile(packagedNatives, "liblwjgl.so");
                 File lwjglOpenGl = findNamedFile(libraries, "liblwjgl_opengl.so");
+                if (lwjglOpenGl == null) lwjglOpenGl = findNamedFile(packagedNatives, "liblwjgl_opengl.so");
                 if (lwjgl == null || lwjglOpenGl == null) {
                     throw new IllegalStateException(plan.describe()
                             + "\n\nLaunch blocked: Android-compatible LWJGL native libraries "
