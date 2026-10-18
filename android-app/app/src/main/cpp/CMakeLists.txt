@@ -36,50 +36,6 @@ if(TARGET GL)
     )
 endif()
 
-# PojavLauncher-derived Android GLFW backend.
-# The stock desktop GLFW backend cannot bind an Android SurfaceView. This pinned
-# MojoLauncher fork includes GLFW_BUILD_ANDROID support and is the native window
-# backend used by Pojav's SurfaceProvider/GLFWBackend architecture. Building it is
-# only one part of the port: BetaCraft still needs the matching Java/JNI bridge and
-# LWJGL2-to-LWJGL3 compatibility JAR before Minecraft can render through it.
-include(FetchContent)
-set(GLFW_BUILD_ANDROID ON CACHE BOOL "Build Android GLFW platform" FORCE)
-set(GLFW_BUILD_X11 OFF CACHE BOOL "No X11 on Android" FORCE)
-set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "No Wayland on Android" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "No GLFW examples in APK" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "No GLFW tests in APK" FORCE)
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "No GLFW docs in APK" FORCE)
-set(GLFW_INSTALL OFF CACHE BOOL "No GLFW install step" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "Package GLFW as shared library" FORCE)
-
-# GLFW's Android platform uses MojoExec for native library and driver helpers.
-# Add this dependency first; the GLFW CMake project refuses to configure without it.
-FetchContent_Declare(
-    pojav_mojoexec
-    GIT_REPOSITORY https://github.com/MojoLauncher/mojoexec.git
-    GIT_TAG 5a60f9ebbd881ef7b73da4d0b20e158411ffde51
-    GIT_SHALLOW FALSE
-)
-FetchContent_MakeAvailable(pojav_mojoexec)
-
-# The pinned MojoExec revision uses bool/true/false in a C source file without
-# including stdbool.h. Force-include the standard header for this dependency only.
-if(TARGET mojoexec)
-    target_compile_options(mojoexec PRIVATE -include stdbool.h)
-endif()
-
-FetchContent_Declare(
-    pojav_glfw
-    GIT_REPOSITORY https://github.com/MojoLauncher/glfw.git
-    GIT_TAG 7900e19fd2dbcad5abb4affc3b9d56c27e164c59
-    GIT_SHALLOW FALSE
-)
-FetchContent_MakeAvailable(pojav_glfw)
-
-if(TARGET glfw)
-    target_compile_options(glfw PRIVATE -Wno-nullability-completeness)
-endif()
-
 # Native EGL/GLES2 surface smoke test used to validate Android window lifecycle.
 add_library(betacraft_renderer SHARED betacraft_renderer.c)
 target_compile_features(betacraft_renderer PRIVATE c_std_11)
