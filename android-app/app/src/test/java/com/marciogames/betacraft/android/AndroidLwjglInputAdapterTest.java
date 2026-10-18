@@ -58,6 +58,14 @@ public class AndroidLwjglInputAdapterTest {
         assertTrue(recorder.down);
     }
 
+    @Test public void forwardsMouseScrollAxisDeltas() {
+        Recorder recorder = new Recorder();
+        AndroidLwjglInputAdapter.dispatch(recorder,
+                new float[]{NativeGameSurface.INPUT_MOUSE, 8, 0, -1f, 2f}, 800, 400);
+        assertEquals(1, recorder.scrolls);
+        assertEquals(0f, recorder.x, 0.001f);
+    }
+
     @Test public void clampsInvalidCoordinates() {
         Recorder recorder = new Recorder();
         AndroidLwjglInputAdapter.dispatch(recorder,
