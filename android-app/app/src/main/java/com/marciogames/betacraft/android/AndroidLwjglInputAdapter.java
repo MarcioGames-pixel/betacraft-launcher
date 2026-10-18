@@ -67,6 +67,13 @@ final class AndroidLwjglInputAdapter {
             sink.scroll(event[3], event[4]);
             return;
         }
+        // NativeGameSurface uses action 13 for cursor-only movement (touch-look).
+        // Forward the cursor position without synthesizing a mouse-button transition.
+        if (type == NativeGameSurface.INPUT_MOUSE && action == 13) {
+            sink.cursor(clamp(event[3]) * Math.max(1, pixelWidth),
+                    clamp(event[4]) * Math.max(1, pixelHeight));
+            return;
+        }
         float x = clamp(event[3]) * Math.max(1, pixelWidth);
         float y = clamp(event[4]) * Math.max(1, pixelHeight);
         if (type == NativeGameSurface.INPUT_KEY) {
