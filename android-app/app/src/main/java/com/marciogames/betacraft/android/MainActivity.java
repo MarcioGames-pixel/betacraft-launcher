@@ -395,7 +395,7 @@ public final class MainActivity extends Activity {
         username.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Experimental Java launch")
-                .setMessage("This currently supports only versions with the modern Main entry point. Legacy applet launch methods and the Android LWJGL 2 input/render bridge are not fully ported.")
+                .setMessage("Modern Main-based versions and an experimental legacy applet lifecycle host can be prepared. The Android LWJGL renderer/input bridge is still incomplete, so successful game rendering is not guaranteed.")
                 .setView(username)
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Prepare", (dialog, which) -> {
