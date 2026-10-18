@@ -413,18 +413,19 @@ public final class MainActivity extends Activity {
         setBusy(true, "Preparing Java launch plan for " + selected + "…");
         io.execute(() -> {
             try {
+                installBundledLwjglCompatibility();
                 AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(dataRoot,
                         new File(getApplicationInfo().nativeLibraryDir), selected, player, instanceId);
                 File libraries = new File(dataRoot, "libraries");
                 File packagedNatives = new File(getApplicationInfo().nativeLibraryDir);
-                File lwjgl = findNamedFile(libraries, "liblwjgl.so");
+                File lwjgl = findNamedFile(packagedNatives, "liblwjgl64.so");
                 if (lwjgl == null) lwjgl = findNamedFile(packagedNatives, "liblwjgl.so");
-                File lwjglOpenGl = findNamedFile(libraries, "liblwjgl_opengl.so");
-                if (lwjglOpenGl == null) lwjglOpenGl = findNamedFile(packagedNatives, "liblwjgl_opengl.so");
-                if (lwjgl == null || lwjglOpenGl == null) {
+                File glfw = findNamedFile(packagedNatives, "libglfw.so");
+                File jawt = findNamedFile(packagedNatives, "libjawt.so");
+                if (lwjgl == null || glfw == null || jawt == null) {
                     throw new IllegalStateException(plan.describe()
-                            + "\n\nLaunch blocked: Android-compatible LWJGL native libraries "
-                            + "(liblwjgl.so and liblwjgl_opengl.so) are missing. Desktop Linux .so files are not compatible with Android.");
+                            + "\n\nLaunch blocked: the Android ARM64 LWJGL 2 backend is incomplete. "
+                            + "Expected liblwjgl64.so, libglfw.so and libjawt.so in this APK.");
                 }
                 File gl4es = new File(getApplicationInfo().nativeLibraryDir, "libGL.so");
                 if (!gl4es.isFile()) {
@@ -441,6 +442,45 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> setBusy(false, message));
             }
         });
+    }
+
+    private void installBundledLwjglCompatibility() throws Exception {
+        File targetDirectory = new File(new File(new File(dataRoot, "launcher"),
+                "components"), "lwjgl2-android");
+        if (!targetDirectory.isDirectory() && !targetDirectory.mkdirs()) {
+            throw new IllegalStateException("Could not create the Android LWJGL compatibility directory.");
+        }
+        File target = new File(targetDirectory, "lwjgl.jar");
+        if (target.isFile() && target.length() > 100_000) return;
+        File temporary = new File(targetDirectory, "lwjgl.jar.part");
+        try (InputStream input = getAssets().open("lwjgl2-android/lwjgl.jar");
+             java.io.FileOutputStream output = new java.io.FileOutputStream(temporary)) {
+            byte[] buffer = new byte[16 * 1024];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            output.getFD().sync();
+        } catch (Exception e) {
+            temporary.delete();
+            throw new IllegalStateException("Android LWJGL compatibility JAR is not bundled in this APK. Rebuild with the Android LWJGL backend step enabled.", e);
+        }
+        if (temporary.length() < 100_000) {
+            temporary.delete();
+            throw new IllegalStateException("Bundled Android LWJGL compatibility JAR is incomplete.");
+        }
+        if (target.exists() && !target.delete()) {
+            temporary.delete();
+            throw new IllegalStateException("Could not replace the previous LWJGL compatibility JAR.");
+        }
+        if (!temporary.renameTo(target)) {
+            try (InputStream input = new FileInputStream(temporary);
+                 java.io.FileOutputStream output = new java.io.FileOutputStream(target)) {
+                byte[] buffer = new byte[16 * 1024];
+                int count;
+                while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+                output.getFD().sync();
+            }
+            temporary.delete();
+        }
     }
 
     private File findNamedFile(File directory, String name) {
