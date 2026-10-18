@@ -132,6 +132,30 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
         return super.onKeyUp(keyCode, event);
     }
 
+    /** Inject virtual-control input into the same diagnostic queue as hardware input. */
+    static void sendVirtualKey(int glfwKey, boolean down) {
+        if (LIBRARY_AVAILABLE) nativeSendInput(INPUT_KEY, down ? KeyEvent.ACTION_DOWN : KeyEvent.ACTION_UP,
+                glfwKeyToAndroid(glfwKey), 0f, 0f);
+    }
+
+    static void sendVirtualMouse(boolean down) {
+        if (LIBRARY_AVAILABLE) nativeSendInput(INPUT_MOUSE, down ? 11 : 12, 1, 0.5f, 0.5f);
+    }
+
+    private static int glfwKeyToAndroid(int key) {
+        if (key >= 65 && key <= 90) return 29 + key - 65;
+        if (key >= 48 && key <= 57) return 7 + key - 48;
+        switch (key) {
+            case 32: return 62;
+            case 256: return 111;
+            case 65: return 29;
+            case 68: return 32;
+            case 69: return 33;
+            case 83: return 47;
+            case 87: return 51;
+            default: return 0;
+        }
+    }
     /** Non-blocking input poll for the future LWJGL Android event pump. Returns five floats or null. */
     static float[] pollNativeInputEvent() {
         return LIBRARY_AVAILABLE ? nativePollInput() : null;
