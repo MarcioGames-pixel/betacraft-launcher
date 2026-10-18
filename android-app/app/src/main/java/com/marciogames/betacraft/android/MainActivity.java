@@ -225,6 +225,15 @@ public final class MainActivity extends Activity {
         settingsButton.setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, LauncherSettingsActivity.class)));
 
+        Button serversButton = new Button(this);
+        serversButton.setText("Saved multiplayer servers");
+        styleButton(serversButton, false);
+        LinearLayout.LayoutParams serversParams = matchWrap();
+        serversParams.topMargin = dp(8);
+        root.addView(serversButton, serversParams);
+        serversButton.setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, ServerListActivity.class)));
+
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(true);
         progressBar.setVisibility(android.view.View.GONE);
