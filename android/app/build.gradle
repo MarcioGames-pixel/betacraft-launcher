@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'org.betacraft.launcher.android'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'org.betacraft.launcher.android'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.09-android-preview'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+}
