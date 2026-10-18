@@ -44,8 +44,12 @@ jobs:
           set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort | tail -n 1)"
           if [ -z "$SDKMANAGER" ]; then echo "Android sdkmanager not found"; exit 1; fi
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "ndk;27.2.12479018"
+          # sdkmanager may exit before `yes` does, which causes a harmless
+          # SIGPIPE. Do not let pipefail misreport that as an SDK failure.
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses
+          set -o pipefail
+          "$SDKMANAGER" --install "ndk;27.2.12479018"
 
       - name: Set up JDK 8 for legacy LWJGL generator
         uses: actions/setup-java@v4
