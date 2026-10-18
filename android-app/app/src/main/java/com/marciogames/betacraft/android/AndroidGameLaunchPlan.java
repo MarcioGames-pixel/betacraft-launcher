@@ -12,9 +12,10 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 
 /**
- * Builds a deterministic JLI invocation for Minecraft versions that expose a
- * normal Java main(String[]) entry point. Applet-era versions require a
- * BetaCraft launch-method adapter and are deliberately rejected here.
+ * Builds a deterministic JLI invocation for versions with a real Java entry
+ * point. Main-based releases and the standalone Cave Game/RubyDung clients are
+ * handled separately; applet-based Classic/Indev/Infdev versions are rejected
+ * until their applet adapters are ported to Android.
  */
 final class AndroidGameLaunchPlan {
     final String version;
@@ -54,11 +55,17 @@ final class AndroidGameLaunchPlan {
 
         String mainClass = findMainClass(versionJar);
         if (mainClass == null) {
-            throw new IllegalStateException("This version uses an applet or a custom BetaCraft launch method. Its adapter is not yet ported to Android; refusing to start it with incorrect arguments.");
+            String method = AndroidLaunchMethodDetector.detect(versionJar);
+            String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
+            throw new IllegalStateException("This version uses " + category
+                    + " without a supported standalone Java entry point. Classic/Indev/Infdev applets and custom desktop launch methods still need Android-specific adapters; the launcher will not pass them incorrect arguments.");
         }
-        if (!"net.minecraft.client.main.Main".equals(mainClass)) {
-            throw new IllegalStateException("Detected main class " + mainClass
-                    + ", but the Android launch adapter currently supports only the modern net.minecraft.client.main.Main entry point.");
+        boolean modernMain = "net.minecraft.client.main.Main".equals(mainClass);
+        boolean caveGame = "com.mojang.rubydung.RubyDung".equals(mainClass)
+                || "com.mojang.minecraft.RubyDung".equals(mainClass);
+        if (!modernMain && !caveGame) {
+            throw new IllegalStateException("Detected entry point " + mainClass
+                    + ", which does not yet have an Android launch adapter.");
         }
 
         InstanceStorage.Instance instance = instanceId == null || instanceId.trim().isEmpty()
@@ -130,17 +137,23 @@ final class AndroidGameLaunchPlan {
                 .getBytes(StandardCharsets.UTF_8)).toString().replace("-", "");
         List<String> args = new ArrayList<>();
         args.add(mainClass);
-        args.add("--username"); args.add(player);
-        args.add("--version"); args.add(version);
-        args.add("--gameDir"); args.add(gameDir.getAbsolutePath());
-        args.add("--assetsDir"); args.add(new File(dataRoot, "assets").getAbsolutePath());
-        args.add("--assetIndex"); args.add("legacy");
-        args.add("--uuid"); args.add(uuid);
-        args.add("--accessToken"); args.add("0");
-        args.add("--userType"); args.add("legacy");
-        args.add("--versionType"); args.add("BetaCraft Android");
-        args.add("--width"); args.add("854");
-        args.add("--height"); args.add("480");
+        if (modernMain) {
+            args.add("--username"); args.add(player);
+            args.add("--version"); args.add(version);
+            args.add("--gameDir"); args.add(gameDir.getAbsolutePath());
+            args.add("--assetsDir"); args.add(new File(dataRoot, "assets").getAbsolutePath());
+            args.add("--assetIndex"); args.add("legacy");
+            args.add("--uuid"); args.add(uuid);
+            args.add("--accessToken"); args.add("0");
+            args.add("--userType"); args.add("legacy");
+            args.add("--versionType"); args.add("BetaCraft Android");
+            args.add("--width"); args.add("854");
+            args.add("--height"); args.add("480");
+        } else {
+            // Cave Game/RubyDung is a standalone LWJGL client and does not
+            // accept the modern Minecraft --username/--gameDir argument set.
+            jvm.add("-Dbetacraft.gameDirectory=" + gameDir.getAbsolutePath());
+        }
 
         File tmp = new File(gameDir, "tmp");
         if (!tmp.isDirectory() && !tmp.mkdirs()) {
@@ -178,6 +191,12 @@ final class AndroidGameLaunchPlan {
             }
             if (archive.getJarEntry("net/minecraft/client/main/Main.class") != null) {
                 return "net.minecraft.client.main.Main";
+            }
+            if (archive.getJarEntry("com/mojang/rubydung/RubyDung.class") != null) {
+                return "com.mojang.rubydung.RubyDung";
+            }
+            if (archive.getJarEntry("com/mojang/minecraft/RubyDung.class") != null) {
+                return "com.mojang.minecraft.RubyDung";
             }
             if (archive.getJarEntry("net/minecraft/client/Minecraft.class") != null) {
                 return "net.minecraft.client.Minecraft";
