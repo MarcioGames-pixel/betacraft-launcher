@@ -64,20 +64,19 @@ final class AndroidGameLaunchPlan {
         }
 
         String mainClass = findMainClass(versionJar);
-        String appletClass = null;
-        if (mainClass == null) {
-            appletClass = AndroidLaunchMethodDetector.detectAppletClass(versionJar);
-            if (appletClass != null) {
-                // The helper is a real JVM main class that constructs the legacy
-                // AppletStub/AppletContext contract. Rendering still needs the
-                // separate Android LWJGL/SurfaceView backend.
-                mainClass = LEGACY_APPLET_HOST_MAIN;
-            } else {
-                String method = AndroidLaunchMethodDetector.detect(versionJar);
-                String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
-                throw new IllegalStateException("This version uses " + category
-                        + " without a supported standalone Java entry point. Custom desktop launch methods still need Android-specific adapters; the launcher will not pass them incorrect arguments.");
-            }
+        String appletClass = AndroidLaunchMethodDetector.detectAppletClass(versionJar);
+        boolean detectedModernMain = "net.minecraft.client.main.Main".equals(mainClass);
+        boolean detectedCaveGame = "com.mojang.rubydung.RubyDung".equals(mainClass)
+                || "com.mojang.minecraft.RubyDung".equals(mainClass);
+        if (appletClass != null && !detectedModernMain && !detectedCaveGame) {
+            // Some legacy JARs contain Minecraft.class but no Java main method;
+            // that class must not be mistaken for a standalone entry point.
+            mainClass = LEGACY_APPLET_HOST_MAIN;
+        } else if (mainClass == null) {
+            String method = AndroidLaunchMethodDetector.detect(versionJar);
+            String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
+            throw new IllegalStateException("This version uses " + category
+                    + " without a supported standalone Java entry point. Custom desktop launch methods still need Android-specific adapters; the launcher will not pass them incorrect arguments.");
         }
         boolean modernMain = "net.minecraft.client.main.Main".equals(mainClass);
         boolean caveGame = "com.mojang.rubydung.RubyDung".equals(mainClass)
