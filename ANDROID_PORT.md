@@ -24,19 +24,19 @@ Open **Actions → Android APK (BetaCraft v1 port)** and choose **Run workflow**
 - Stores files in the app-private directory shown in the UI.
 - Adds a runtime preflight button that validates the selected JAR, reads its declared `launch-method`, reports the Android ABI, estimates the Java major version needed by the selected Minecraft version, and checks the runtime's `release` metadata plus expected native bridge components.
 - Adds Android ARM64 OpenJDK 8 and 17 runtime installers. Java 8 is resolved from the latest successful public Android `jre8-pojav` CI artifact (not the similarly named iOS archive); Java 17 uses the Android-specific Pojav build. The installer validates Java release metadata and confirms that `libjvm.so` and `libjli.so` are ELF64 AArch64 libraries before activating the runtime. Downloads use HTTPS with redirect-host validation; XZ/TAR extraction uses staging storage, path-traversal checks and size limits before activation.
-- Adds a JNI/JLI bootstrap library using Android NDK/CMake and a **Test Java runtime** action that calls OpenJDK's `JLI_Launch` entry point with `-version`. This tests the JVM bootstrap only; it does not claim Minecraft itself launches.
+- Adds a JNI/JLI bootstrap library using Android NDK/CMake, a **Test Java runtime** action, and a reusable entry point for launching a Java main class with an argument array. Adds an experimental selected-version launch path that builds a classpath from the version JAR and cached library JARs, uses the active instance game directory, creates an offline player UUID, and prepares the modern `net.minecraft.client.main.Main` arguments. The UI rejects applet-era launch methods rather than passing them incorrect arguments.
 - Builds the pinned PojavLauncherTeam GL4ES compatibility library (`libGL.so`) for Android through CMake/FetchContent. GL4ES translates legacy desktop OpenGL calls to OpenGL ES; it is only one part of the rendering stack and does not provide an EGL game surface, LWJGL JNI binaries, or touch controls by itself.
 
 ## Important limitations
 
-This is **not yet a working Minecraft launcher**. The app does not yet claim to launch Minecraft until the LWJGL/native renderer and touch-input bridge are ready. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
+This is **not yet a working Minecraft launcher**. The experimental launch path is only an argument/JVM integration step for main-based versions; it blocks when the expected LWJGL native libraries are absent. It does not yet provide a compatible LWJGL 2 Android backend or connect touch input to Minecraft. Some historical metadata may contain URLs that no longer support HTTPS; those downloads will fail safely and need a compatibility decision.
 
 Remaining work:
 1. Validate metadata formats and test launch-method downloads against the live catalogue, including versions without a launch method.
-2. Connect the per-instance game directory and per-instance mod lists to the eventual launch process; instance folders and version assignments are now persisted, but they are not yet consumed by a Minecraft process.
+2. Connect per-instance mods and assets to the launch process; the experimental launch plan now uses the active instance's game directory, but mod resolution and asset-index resolution remain incomplete.
 3. Test the JNI/JLI bootstrap against both published ARM64 runtimes and device Android versions. The bootstrap is implemented, but its compatibility with each runtime still needs real-device validation.
-4. Finish renderer integration around the now-built GL4ES library: create/manage an EGL surface, load compatible LWJGL JNI binaries, connect game lifecycle and touch input, then test each version separately. Java 17 is not a substitute for Java 8 on older versions.
+4. Finish renderer integration around GL4ES: provide a compatible Android LWJGL 2 JNI/backend for old BetaCraft versions, bind its window/context lifecycle to the Android EGL surface, and connect keyboard, mouse and touch events. The existing EGL screen is still a smoke test, not the Minecraft render loop. Test each supported version separately.
 5. Port Microsoft/Mojang authentication, changelog/server pages, addon/modpack management, logging, and lifecycle/background work. The current settings/profile screens are only an initial UI foundation, not full parity with desktop BetaCraft.
-6. Integrate a complete Minecraft launch-argument builder and connect it to the JVM bootstrap after renderer/input support is available. Build the APK in Actions and test on real Android devices.
+6. Complete argument/authentication and asset resolution for the selected version, then run the JVM path end-to-end after the Android LWJGL/input backend is present. Build the APK in Actions and test on real Android devices.
 
 A successful APK build only confirms the app compiles. It does not prove Minecraft can launch.
