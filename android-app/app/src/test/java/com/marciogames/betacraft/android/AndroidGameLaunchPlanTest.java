@@ -53,6 +53,8 @@ public class AndroidGameLaunchPlanTest {
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("Marcio_1"));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("--gameDir"));
             assertEquals(runtime.getCanonicalFile(), plan.javaHome.getCanonicalFile());
+            assertTrue("Default launch overload retains a conservative heap",
+                    plan.jvmArguments.contains("-Xmx768M"));
         } finally {
             deleteTree(temp);
         }
