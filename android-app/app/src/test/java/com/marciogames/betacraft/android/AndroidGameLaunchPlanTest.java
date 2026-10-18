@@ -64,8 +64,7 @@ public class AndroidGameLaunchPlanTest {
             File data = new File(temp, "data");
             File versions = new File(data, "versions");
             assertTrue(versions.mkdirs());
-            File jar = new File(versions, "rd-132211");
-            jar = new File(versions, "rd-132211.jar");
+            File jar = new File(versions, "rd-132211.jar");
             createJar(jar, null, "com/mojang/rubydung/RubyDung.class");
 
             File runtime = new File(data, "runtime/java8");
