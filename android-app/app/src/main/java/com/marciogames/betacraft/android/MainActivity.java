@@ -51,6 +51,7 @@ public final class MainActivity extends Activity {
     private TextView storageInfo;
     private Button refreshButton;
     private Button downloadButton;
+    private Button launchGameButton;
     private Button launchMethodButton;
     private Button runtimeCheckButton;
     private Button runtimeTestButton;
@@ -153,6 +154,14 @@ public final class MainActivity extends Activity {
         downloadParams.topMargin = dp(8);
         root.addView(downloadButton, downloadParams);
         downloadButton.setOnClickListener(v -> downloadSelectedVersion());
+
+        launchGameButton = new Button(this);
+        launchGameButton.setText("Launch selected version (experimental)");
+        styleButton(launchGameButton, true);
+        LinearLayout.LayoutParams launchGameParams = matchWrap();
+        launchGameParams.topMargin = dp(8);
+        root.addView(launchGameButton, launchGameParams);
+        launchGameButton.setOnClickListener(v -> promptLaunchSelectedVersion());
 
         launchMethodButton = new Button(this);
         launchMethodButton.setText("Install launch method");
@@ -372,6 +381,77 @@ public final class MainActivity extends Activity {
                 if (connection != null) connection.disconnect();
             }
         });
+    }
+
+    private void promptLaunchSelectedVersion() {
+        if (versionSpinner == null || versionSpinner.getSelectedItem() == null) {
+            status.setText("Refresh the version catalogue and select a version first.");
+            return;
+        }
+        android.widget.EditText username = new android.widget.EditText(this);
+        username.setSingleLine(true);
+        username.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString("offline_username", "Player"));
+        username.setHint("Offline player name");
+        username.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Experimental Java launch")
+                .setMessage("This currently supports only versions with the modern Main entry point. Legacy applet launch methods and the Android LWJGL 2 input/render bridge are not fully ported.")
+                .setView(username)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Prepare", (dialog, which) -> {
+                    String player = username.getText().toString().trim();
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                            .putString("offline_username", player).apply();
+                    prepareAndLaunchVersion(player);
+                }).show();
+    }
+
+    private void prepareAndLaunchVersion(String player) {
+        final String selected = String.valueOf(versionSpinner.getSelectedItem());
+        final String instanceId = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString("active_instance_id", "");
+        setBusy(true, "Preparing Java launch plan for " + selected + "…");
+        io.execute(() -> {
+            try {
+                AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(dataRoot,
+                        new File(getApplicationInfo().nativeLibraryDir), selected, player, instanceId);
+                File libraries = new File(dataRoot, "libraries");
+                File lwjgl = findNamedFile(libraries, "liblwjgl.so");
+                File lwjglOpenGl = findNamedFile(libraries, "liblwjgl_opengl.so");
+                if (lwjgl == null || lwjglOpenGl == null) {
+                    throw new IllegalStateException(plan.describe()
+                            + "\n\nLaunch blocked: Android-compatible LWJGL native libraries "
+                            + "(liblwjgl.so and liblwjgl_opengl.so) are missing. Desktop Linux .so files are not compatible with Android.");
+                }
+                File gl4es = new File(getApplicationInfo().nativeLibraryDir, "libGL.so");
+                if (!gl4es.isFile()) {
+                    throw new IllegalStateException("Launch blocked: GL4ES libGL.so is missing from this APK.");
+                }
+                runOnUiThread(() -> setBusy(false,
+                        "Starting " + selected + " with offline player " + player
+                                + ". Touch input/render integration is experimental."));
+                int result = AndroidJvmBridge.launch(plan.javaHome, plan.toJliArguments());
+                runOnUiThread(() -> setBusy(false, "Minecraft JVM returned with code " + result
+                        + ". See logcat (BetaCraftRuntime) for the native/JVM output."));
+            } catch (Exception e) {
+                String message = safeMessage(e);
+                runOnUiThread(() -> setBusy(false, message));
+            }
+        });
+    }
+
+    private File findNamedFile(File directory, String name) {
+        if (directory == null || !directory.isDirectory()) return null;
+        File[] children = directory.listFiles();
+        if (children == null) return null;
+        for (File child : children) {
+            if (child.isFile() && name.equals(child.getName())) return child;
+            if (child.isDirectory() && !child.getName().equals("natives")) {
+                File found = findNamedFile(child, name);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private void downloadSelectedVersion() {
@@ -875,6 +955,7 @@ public final class MainActivity extends Activity {
         if (status != null) status.setText(message);
         if (refreshButton != null) refreshButton.setEnabled(!busy);
         if (downloadButton != null) downloadButton.setEnabled(!busy);
+        if (launchGameButton != null) launchGameButton.setEnabled(!busy);
         if (launchMethodButton != null) launchMethodButton.setEnabled(!busy);
         if (runtimeCheckButton != null) runtimeCheckButton.setEnabled(!busy);
         if (runtimeInstallButton != null) runtimeInstallButton.setEnabled(!busy);
