@@ -24,6 +24,9 @@ public class AndroidGameLaunchPlanTest {
             File dependency = new File(data, "libraries/example/dependency.jar");
             dependency.getParentFile().mkdirs();
             createJar(dependency, null, "example/Dependency.class");
+            File lwjglx = new File(data, "launcher/components/lwjgl3/lwjgl-lwjglx.jar");
+            lwjglx.getParentFile().mkdirs();
+            createJar(lwjglx, null, "org/lwjgl/opengl/Display.class");
 
             File runtime = new File(data, "runtime/java8");
             runtime.mkdirs();
@@ -40,6 +43,8 @@ public class AndroidGameLaunchPlanTest {
                     plan.gameDirectory.getCanonicalFile());
             assertTrue(plan.classPath.contains(jar.getAbsolutePath()));
             assertTrue(plan.classPath.contains(dependency.getAbsolutePath()));
+            assertTrue("Compatibility jars must be visible to the launched JVM",
+                    plan.classPath.contains(lwjglx.getAbsolutePath()));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("-cp"));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("--username"));
             assertTrue(Arrays.asList(plan.toJliArguments()).contains("Marcio_1"));
