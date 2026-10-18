@@ -4,6 +4,8 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceView;
 
 /**
@@ -29,6 +31,9 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
 
     private final Listener listener;
     private boolean running;
+    static final int INPUT_TOUCH = 1;
+    static final int INPUT_KEY = 2;
+    static final int INPUT_MOUSE = 3;
 
     NativeGameSurface(Context context, Listener listener) {
         super(context);
@@ -46,6 +51,33 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
         getHolder().addCallback(this);
         setFocusable(true);
         setFocusableInTouchMode(true);
+        setOnTouchListener((view, event) -> {
+            if (!LIBRARY_AVAILABLE || !running) return true;
+            int action = event.getActionMasked();
+            int pointerIndex = event.getActionIndex();
+            int pointerId = event.getPointerId(pointerIndex);
+            float width = Math.max(1, getWidth());
+            float height = Math.max(1, getHeight());
+            if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN
+                    || action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_UP
+                    || action == MotionEvent.ACTION_POINTER_UP || action == MotionEvent.ACTION_CANCEL) {
+                int count = action == MotionEvent.ACTION_MOVE ? event.getPointerCount() : 1;
+                for (int n = 0; n < count; n++) {
+                    int index = action == MotionEvent.ACTION_MOVE ? n : pointerIndex;
+                    float x = Math.max(0f, Math.min(1f, event.getX(index) / width));
+                    float y = Math.max(0f, Math.min(1f, event.getY(index) / height));
+                    nativeSendInput(INPUT_TOUCH, action, event.getPointerId(index), x, y);
+                }
+                return true;
+            }
+            if (event.getSource() == android.view.InputDevice.SOURCE_MOUSE) {
+                nativeSendInput(INPUT_MOUSE, action, event.getButtonState(),
+                        Math.max(0f, Math.min(1f, event.getX() / width)),
+                        Math.max(0f, Math.min(1f, event.getY() / height)));
+                return true;
+            }
+            return true;
+        });
     }
 
     @Override public void surfaceCreated(SurfaceHolder holder) {
@@ -74,6 +106,29 @@ final class NativeGameSurface extends SurfaceView implements SurfaceHolder.Callb
         if (listener != null) listener.onSurfaceStatus(message);
     }
 
+    @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (LIBRARY_AVAILABLE && running) {
+            nativeSendInput(INPUT_KEY, KeyEvent.ACTION_DOWN, keyCode, 0f, 0f);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (LIBRARY_AVAILABLE && running) {
+            nativeSendInput(INPUT_KEY, KeyEvent.ACTION_UP, keyCode, 0f, 0f);
+            return true;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    /** Non-blocking input poll for the future LWJGL Android event pump. Returns five floats or null. */
+    static float[] pollNativeInputEvent() {
+        return LIBRARY_AVAILABLE ? nativePollInput() : null;
+    }
+
+    private static native void nativeSendInput(int type, int action, int code, float x, float y);
+    private static native float[] nativePollInput();
     private static native boolean nativeStart(Surface surface);
     private static native void nativeStop();
 }
