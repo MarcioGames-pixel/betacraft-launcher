@@ -421,6 +421,10 @@ public final class MainActivity extends Activity {
                 AndroidGameLaunchPlan plan = AndroidGameLaunchPlan.prepare(dataRoot,
                         new File(getApplicationInfo().nativeLibraryDir), selected, player,
                         instanceId, preferredRamMb);
+                if (AndroidGameLaunchPlan.LEGACY_APPLET_HOST_MAIN.equals(plan.mainClass)
+                        && !AndroidRuntimeInstaller.hasLegacyAppletClasses(plan.javaHome)) {
+                    throw new IllegalStateException("This Java runtime does not include the Java Applet/AWT classes required by this legacy version. Install an Android Java 8 runtime with rt.jar containing java.applet and java.awt classes; the applet lifecycle helper alone cannot replace those classes.");
+                }
                 File libraries = new File(dataRoot, "libraries");
                 File packagedNatives = new File(getApplicationInfo().nativeLibraryDir);
                 File lwjgl = findNamedFile(packagedNatives, "liblwjgl64.so");
