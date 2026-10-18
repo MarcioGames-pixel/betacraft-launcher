@@ -55,6 +55,14 @@ final class AndroidGameLaunchPlan {
 
         String mainClass = findMainClass(versionJar);
         if (mainClass == null) {
+            String appletClass = AndroidLaunchMethodDetector.detectAppletClass(versionJar);
+            if (appletClass != null) {
+                throw new IllegalStateException("Detected legacy applet entry point "
+                        + appletClass + ". This Minecraft version requires the Android Applet adapter "
+                        + "to create the applet lifecycle and parameters; desktop applets cannot be "
+                        + "started by calling java.applet.Applet as a main class. The version is "
+                        + "recognized, but its applet adapter is not yet implemented.");
+            }
             String method = AndroidLaunchMethodDetector.detect(versionJar);
             String category = method == null ? "an unknown legacy format" : "the " + method + " launch method";
             throw new IllegalStateException("This version uses " + category
