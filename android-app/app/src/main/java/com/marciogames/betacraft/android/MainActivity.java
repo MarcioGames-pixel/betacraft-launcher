@@ -60,6 +60,7 @@ public final class MainActivity extends Activity {
     private ProgressBar progressBar;
     private File dataRoot;
     private volatile boolean activityAlive = true;
+    private String ignoreProgrammaticVersion = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,8 +123,15 @@ public final class MainActivity extends Activity {
             public void onItemSelected(AdapterView<?> parent, android.view.View view,
                                        int position, long id) {
                 if (position >= 0 && position < versions.size()) {
+                    String selected = versions.get(position);
+                    if (selected.equals(ignoreProgrammaticVersion)) {
+                        ignoreProgrammaticVersion = null;
+                        updateSelectedVersionStatus();
+                        return;
+                    }
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                            .putString(PREF_VERSION, versions.get(position)).apply();
+                            .putString(PREF_VERSION, selected).apply();
+                    saveVersionToActiveInstance(selected);
                     updateSelectedVersionStatus();
                 }
             }
@@ -697,17 +705,59 @@ public final class MainActivity extends Activity {
     private void replaceVersions(List<String> newVersions, boolean preserveSelection) {
         String previous = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(PREF_VERSION, "");
+        String assigned = getActiveInstanceVersion();
         versions.clear();
         versions.addAll(newVersions);
         if (versionAdapter != null) versionAdapter.notifyDataSetChanged();
-        int selectedIndex = versions.indexOf(previous);
+
+        // On startup/refresh, prefer the active instance's version when it exists
+        // in the catalogue. Otherwise preserve the user's last global selection.
+        int selectedIndex = !assigned.isEmpty() ? versions.indexOf(assigned) : -1;
+        if (selectedIndex < 0) selectedIndex = versions.indexOf(previous);
         if (selectedIndex < 0 && !versions.isEmpty()) selectedIndex = 0;
         if (selectedIndex >= 0) {
+            String selected = versions.get(selectedIndex);
+            ignoreProgrammaticVersion = selected;
             versionSpinner.setSelection(selectedIndex);
-            if (!preserveSelection || previous.isEmpty() || !versions.contains(previous)) {
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                        .putString(PREF_VERSION, versions.get(selectedIndex)).apply();
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_VERSION, selected).apply();
+        }
+    }
+
+    private String getActiveInstanceVersion() {
+        String id = getSharedPreferences(PREFS, MODE_PRIVATE).getString("active_instance_id", "");
+        if (id.isEmpty()) return "";
+        try {
+            InstanceStorage.Instance instance = InstanceStorage.findById(dataRoot, id);
+            return instance == null ? "" : instance.version;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private void saveVersionToActiveInstance(String version) {
+        String id = getSharedPreferences(PREFS, MODE_PRIVATE).getString("active_instance_id", "");
+        if (id.isEmpty()) return;
+        try {
+            InstanceStorage.Instance instance = InstanceStorage.findById(dataRoot, id);
+            if (instance != null && !version.equals(instance.version)) {
+                InstanceStorage.setVersion(instance, version);
             }
+        } catch (Exception e) {
+            if (status != null) status.setText("Version selected, but the active instance could not be updated: "
+                    + safeMessage(e));
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (versionSpinner == null || versions.isEmpty()) return;
+        String assigned = getActiveInstanceVersion();
+        int index = versions.indexOf(assigned);
+        if (index >= 0 && index != versionSpinner.getSelectedItemPosition()) {
+            ignoreProgrammaticVersion = assigned;
+            versionSpinner.setSelection(index);
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(PREF_VERSION, assigned).apply();
         }
     }
 
