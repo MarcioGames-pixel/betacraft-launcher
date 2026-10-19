@@ -184,9 +184,13 @@ final class AndroidRuntimeInstaller {
      * without embedding a personal access token in the APK.
      */
     private static String resolveJava8ArtifactUrl() {
+        // Pin the known successful public Actions artifact directly. The
+        // workflow/branch alias can return 404 when nightly.link has not yet
+        // refreshed its branch index, even though the artifact still exists.
+        // Artifact 10936172301 is the patched AArch64 JRE built by run
+        // 36333201084 and is valid through 2026-12-26.
         return "https://nightly.link/ModinMobileSTS/angelauramc-openjdk-build"
-                + "/workflows/build-aarch64-explicit-null-checks.yml"
-                + "/buildjre8/jre8-android-aarch64-explicit-null-checks.zip";
+                + "/actions/artifacts/10936172301.zip";
     }
 
     private static JSONObject readJson(String address) throws Exception {
