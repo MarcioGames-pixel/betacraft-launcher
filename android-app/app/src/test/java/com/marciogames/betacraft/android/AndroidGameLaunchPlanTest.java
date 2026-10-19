@@ -55,6 +55,8 @@ public class AndroidGameLaunchPlanTest {
             assertEquals(runtime.getCanonicalFile(), plan.javaHome.getCanonicalFile());
             assertTrue("Default launch overload retains a conservative heap",
                     plan.jvmArguments.contains("-Xmx768M"));
+            assertTrue("ARM64 Java 8 needs compressed-oops workaround",
+                    plan.jvmArguments.contains("-XX:-UseCompressedOops"));
         } finally {
             deleteTree(temp);
         }
