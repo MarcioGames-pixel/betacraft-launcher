@@ -29,9 +29,7 @@ final class AndroidRuntimeInstaller {
     private static String sourceUrl(int major) {
         String base = "https://github.com/PojavLauncherTeam/android-openjdk-build-multiarch/releases/download/";
         if (major == 8) {
-            // Public release asset: Actions artifact_download_url requires an
-            // authenticated GitHub token and returns HTTP 401 in the app.
-            return "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre8/jre8-android-arm64.tar.xz";
+            throw new IllegalArgumentException("Java 8 must use the patched Android AArch64 artifact resolver.");
         }
         if (major == 17) {
             return base + "jre17-ec28559/jre17-arm64-20210825-release.tar.xz";
@@ -67,16 +65,27 @@ final class AndroidRuntimeInstaller {
         deleteTree(archive);
         deleteTree(java8Package);
         download(archive, major, progress);
-        // Both Java versions are published as public .tar.xz release assets.
-        // Do not download GitHub Actions artifacts: those URLs require auth and
-        // return HTTP 401 to anonymous launcher users.
-        extract(archive, staged, major, progress);
-        if (major == 8) unpackJava8PackedJars(staged);
+        if (major == 8) {
+            // This artifact includes the AArch64 interpreter fix for the
+            // "Field too big for insn" HotSpot startup abort. Do not fall back
+            // to the older unpatched Java 8 runtime if the artifact is missing.
+            extractJava8Artifact(archive, staged, progress);
+            unpackJava8PackedJars(staged);
+        } else {
+            extract(archive, staged, major, progress);
+        }
         if (!hasCompatibleRuntime(staged, major)) {
             deleteTree(staged);
             deleteTree(archive);
             deleteTree(java8Package);
             throw new IllegalStateException("The downloaded Java " + major + " package is incomplete or is not a 64-bit ARM (AArch64) Android runtime. Expected libjvm.so and libjli.so.");
+        }
+
+        if (major == 8) {
+            progress.update("Testing patched Java 8 ARM64 before activation…", 0, 1);
+            // Reject a JVM that crashes during startup instead of replacing a
+            // working runtime with an unusable one.
+            AndroidJvmBridge.test(staged);
         }
 
         deleteTree(backup);
@@ -95,7 +104,7 @@ final class AndroidRuntimeInstaller {
     }
 
     private static void download(File destination, int major, Progress progress) throws Exception {
-        URL current = new URL(sourceUrl(major));
+        URL current = new URL(major == 8 ? resolveJava8ArtifactUrl() : sourceUrl(major));
         HttpURLConnection connection = null;
         try {
             for (int redirects = 0; redirects <= 5; redirects++) {
@@ -161,33 +170,36 @@ final class AndroidRuntimeInstaller {
 
  
     /**
-     * Java 8's commonly linked "arm64" release is an iOS runtime, not an Android
-     * runtime. Resolve the current Android AArch64 package from Amethyst's public
-     * OpenJDK CI artifact instead, and validate the ELF architecture before install.
+     * Resolve the patched Android AArch64 Java 8 build. The upstream interpreter
+     * template can otherwise emit a range-limited direct branch and abort HotSpot
+     * with "Field too big for insn" during startup, even with -Xint.
      */
     private static String resolveJava8ArtifactUrl() throws Exception {
-        JSONObject runs = readJson("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/runs?branch=buildjre8&status=success&per_page=1");
+        final String repository = "ModinMobileSTS/angelauramc-openjdk-build";
+        JSONObject runs = readJson("https://api.github.com/repos/" + repository
+                + "/actions/workflows/build-aarch64-explicit-null-checks.yml/runs"
+                + "?branch=buildjre8&status=success&per_page=10");
         JSONArray workflowRuns = runs.optJSONArray("workflow_runs");
-        if (workflowRuns == null || workflowRuns.length() == 0) {
-            throw new IllegalStateException("No successful Android Java 8 ARM64 build was found.");
-        }
-        long runId = workflowRuns.getJSONObject(0).getLong("id");
-        JSONObject artifacts = readJson("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/runs/"
-                + runId + "/artifacts?per_page=100");
-        JSONArray list = artifacts.optJSONArray("artifacts");
-        if (list != null) {
-            for (int index = 0; index < list.length(); index++) {
-                JSONObject item = list.getJSONObject(index);
-                if ("jre8-pojav".equals(item.optString("name"))
-                        && !item.optBoolean("expired", true)) {
-                    String url = item.optString("archive_download_url", "");
-                    if (url.startsWith("https://api.github.com/repos/AngelAuraMC/angelauramc-openjdk-build/actions/artifacts/")) {
-                        return url;
+        if (workflowRuns != null) {
+            for (int runIndex = 0; runIndex < workflowRuns.length(); runIndex++) {
+                long runId = workflowRuns.getJSONObject(runIndex).getLong("id");
+                JSONObject artifacts = readJson("https://api.github.com/repos/" + repository
+                        + "/actions/runs/" + runId + "/artifacts?per_page=100");
+                JSONArray list = artifacts.optJSONArray("artifacts");
+                if (list == null) continue;
+                for (int index = 0; index < list.length(); index++) {
+                    JSONObject item = list.getJSONObject(index);
+                    if ("jre8-android-aarch64-explicit-null-checks".equals(item.optString("name"))
+                            && !item.optBoolean("expired", true)) {
+                        String url = item.optString("archive_download_url", "");
+                        if (url.startsWith("https://api.github.com/repos/" + repository + "/actions/artifacts/")) {
+                            return url;
+                        }
                     }
                 }
             }
         }
-        throw new IllegalStateException("The latest Android Java 8 ARM64 artifact has expired or is unavailable.");
+        throw new IllegalStateException("The patched Android Java 8 ARM64 runtime is unavailable or expired. Refusing to install the known-crashing unpatched build.");
     }
 
     private static JSONObject readJson(String address) throws Exception {
@@ -243,11 +255,13 @@ final class AndroidRuntimeInstaller {
                     throw new IllegalStateException("Unsafe path in Java 8 artifact.");
                 }
                 String leaf = name.substring(name.lastIndexOf('/') + 1);
-                if (!("universal.tar.xz".equals(leaf) || "bin-arm64.tar.xz".equals(leaf)
-                        || "version".equals(leaf))) {
-                    continue;
-                }
-                File output = new File(packageDir, leaf);
+                boolean splitPojavPackage = "universal.tar.xz".equals(leaf)
+                        || "bin-arm64.tar.xz".equals(leaf) || "version".equals(leaf);
+                boolean patchedRawRuntime = leaf.startsWith("jre8-android-aarch64-")
+                        && leaf.endsWith(".tar.xz");
+                if (!splitPojavPackage && !patchedRawRuntime) continue;
+                File output = new File(packageDir,
+                        patchedRawRuntime ? "patched-aarch64-runtime.tar.xz" : leaf);
                 try (FileOutputStream out = new FileOutputStream(output)) {
                     int n;
                     while ((n = zip.read(buffer)) != -1) {
@@ -262,13 +276,21 @@ final class AndroidRuntimeInstaller {
                 zip.closeEntry();
             }
         }
+        File patchedRuntime = new File(packageDir, "patched-aarch64-runtime.tar.xz");
+        if (patchedRuntime.isFile() && patchedRuntime.length() >= 1024) {
+            if (progress != null) progress.update("Extracting patched Java 8 ARM64 runtime…", 0, 0);
+            extract(patchedRuntime, destination, 8, progress);
+            deleteTree(packageDir);
+            return;
+        }
+
         File universal = new File(packageDir, "universal.tar.xz");
         File arm64 = new File(packageDir, "bin-arm64.tar.xz");
         if (!universal.isFile() || !arm64.isFile()
                 || universal.length() < 1024 || arm64.length() < 1024) {
-            throw new IllegalStateException("Android Java 8 package is missing universal.tar.xz or bin-arm64.tar.xz.");
+            throw new IllegalStateException("Patched Java 8 artifact is missing its AArch64 runtime archive.");
         }
-        if (progress != null) progress.update("Extracting Android Java 8 ARM64 runtime…", 0, 0);
+        if (progress != null) progress.update("Extracting patched Java 8 ARM64 runtime…", 0, 0);
         extract(universal, destination, 8, progress);
         extract(arm64, destination, 8, progress);
         deleteTree(packageDir);
