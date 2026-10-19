@@ -35,7 +35,12 @@ final class AndroidJvmBridge {
             throw new IllegalStateException("The installed runtime has no bin/java executable; reinstall the Android ARM64 runtime.");
         }
         java.setExecutable(true, false);
-        ProcessBuilder builder = new ProcessBuilder(java.getAbsolutePath(), "-version");
+        // This ARM64 OpenJDK 8 build can abort in assembler_aarch64.hpp while
+        // initializing HotSpot with compressed oops enabled. Disable that mode
+        // for the isolated self-test; the game launch plan applies the same
+        // workaround to Java 8. Do not rename/replace the runtime binary.
+        ProcessBuilder builder = new ProcessBuilder(java.getAbsolutePath(),
+                "-XX:-UseCompressedOops", "-version");
         builder.directory(actualHome);
         builder.redirectErrorStream(true);
         Map<String, String> environment = builder.environment();
