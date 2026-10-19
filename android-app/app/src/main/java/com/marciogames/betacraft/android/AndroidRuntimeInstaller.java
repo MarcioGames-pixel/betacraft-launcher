@@ -113,6 +113,7 @@ final class AndroidRuntimeInstaller {
                 }
                 String host = current.getHost().toLowerCase(java.util.Locale.ROOT);
                 if (!(host.equals("api.github.com") || host.equals("github.com")
+                        || host.equals("nightly.link")
                         || host.equals("release-assets.githubusercontent.com")
                         || host.equals("objects.githubusercontent.com")
                         || host.endsWith(".blob.core.windows.net")
@@ -174,32 +175,18 @@ final class AndroidRuntimeInstaller {
      * template can otherwise emit a range-limited direct branch and abort HotSpot
      * with "Field too big for insn" during startup, even with -Xint.
      */
-    private static String resolveJava8ArtifactUrl() throws Exception {
-        final String repository = "ModinMobileSTS/angelauramc-openjdk-build";
-        JSONObject runs = readJson("https://api.github.com/repos/" + repository
-                + "/actions/workflows/build-aarch64-explicit-null-checks.yml/runs"
-                + "?branch=buildjre8&status=success&per_page=10");
-        JSONArray workflowRuns = runs.optJSONArray("workflow_runs");
-        if (workflowRuns != null) {
-            for (int runIndex = 0; runIndex < workflowRuns.length(); runIndex++) {
-                long runId = workflowRuns.getJSONObject(runIndex).getLong("id");
-                JSONObject artifacts = readJson("https://api.github.com/repos/" + repository
-                        + "/actions/runs/" + runId + "/artifacts?per_page=100");
-                JSONArray list = artifacts.optJSONArray("artifacts");
-                if (list == null) continue;
-                for (int index = 0; index < list.length(); index++) {
-                    JSONObject item = list.getJSONObject(index);
-                    if ("jre8-android-aarch64-explicit-null-checks".equals(item.optString("name"))
-                            && !item.optBoolean("expired", true)) {
-                        String url = item.optString("archive_download_url", "");
-                        if (url.startsWith("https://api.github.com/repos/" + repository + "/actions/artifacts/")) {
-                            return url;
-                        }
-                    }
-                }
-            }
-        }
-        throw new IllegalStateException("The patched Android Java 8 ARM64 runtime is unavailable or expired. Refusing to install the known-crashing unpatched build.");
+    /**
+     * Download the public GitHub Actions artifact through nightly.link.
+     *
+     * GitHub's Actions artifact API requires authentication for artifact downloads,
+     * so calling archive_download_url directly from an Android app returns HTTP 401.
+     * nightly.link exposes the named artifact from the selected public workflow/branch
+     * without embedding a personal access token in the APK.
+     */
+    private static String resolveJava8ArtifactUrl() {
+        return "https://nightly.link/ModinMobileSTS/angelauramc-openjdk-build"
+                + "/workflows/build-aarch64-explicit-null-checks.yml"
+                + "/buildjre8/jre8-android-aarch64-explicit-null-checks.zip";
     }
 
     private static JSONObject readJson(String address) throws Exception {
