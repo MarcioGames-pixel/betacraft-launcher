@@ -40,7 +40,11 @@ final class AndroidJvmBridge {
         // for the isolated self-test; the game launch plan applies the same
         // workaround to Java 8. Do not rename/replace the runtime binary.
         ProcessBuilder builder = new ProcessBuilder(java.getAbsolutePath(),
-                "-XX:-UseCompressedOops", "-version");
+                "-XX:-UseCompressedOops",
+                "-XX:-UseCompressedClassPointers",
+                "-XX:+UseSerialGC",
+                "-Xint",
+                "-version");
         builder.directory(actualHome);
         builder.redirectErrorStream(true);
         Map<String, String> environment = builder.environment();
