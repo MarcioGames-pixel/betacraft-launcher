@@ -146,7 +146,17 @@ final class AndroidGameLaunchPlan {
         // with "assembler_aarch64.hpp:237 / Field too big for insn" when
         // compressed oops are enabled. Disable that mode for Java 8 only.
         // Java 17 uses its own runtime defaults and is left unchanged.
-        if (javaMajor == 8) jvm.add("-XX:-UseCompressedOops");
+        if (javaMajor == 8) {
+            // Conservative startup profile for this ARM64 OpenJDK 8 build.
+            // Disabling compressed references alone may not avoid the
+            // AArch64 assembler assertion on every device/build.
+            // -Xint avoids initializing JIT code generators; SerialGC keeps
+            // the fallback compatible with this older runtime.
+            jvm.add("-XX:-UseCompressedOops");
+            jvm.add("-XX:-UseCompressedClassPointers");
+            jvm.add("-XX:+UseSerialGC");
+            jvm.add("-Xint");
+        }
         // Keep the initial heap modest on Android and honour the saved maximum.
         int initialMemoryMb = Math.min(256, Math.max(128, maxMemoryMb / 4));
         jvm.add("-Xms" + initialMemoryMb + "M");
